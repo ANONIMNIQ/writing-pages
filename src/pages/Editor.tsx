@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_TOP_PERCENT = 40; // The line stays at 40% of the viewport height
+const FOCUS_TOP_PERCENT = 40; 
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,7 +39,7 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  // Precise Centering for Typewriter Mode
+  // Precise Centering: Keeps the cursor line at exactly 40% of the viewport height
   const centerCaret = useCallback(() => {
     if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
     
@@ -47,29 +47,26 @@ const Editor = () => {
     const textarea = contentRef.current;
     const viewportHeight = container.clientHeight;
     
-    // Get the exact Y position of the cursor within the textarea
+    // Get caret coordinates relative to the top of the textarea
     const caret = getCaretCoordinates(textarea, textarea.selectionStart);
     
-    // In typewriter mode, the title is hidden. 
-    // The textarea is wrapped in a container with py-[50vh]
-    const absoluteCaretY = caret.top + (viewportHeight * 0.5);
+    // We want the caret line to be at FOCUS_TOP_PERCENT of the viewport.
+    // The textarea has a top padding of 50vh (0.5 * viewportHeight).
+    // The scroll position should be: (PaddingTop + CaretTop) - ViewportFocusPoint
+    // scrollTop = (0.5 * vh + caret.top) - (0.4 * vh) = 0.1 * vh + caret.top
+    const targetScroll = (viewportHeight * 0.1) + caret.top;
     
-    // We want the top of the line (absoluteCaretY) to be at 40% of viewport height
-    const targetScroll = absoluteCaretY - (viewportHeight * (FOCUS_TOP_PERCENT / 100));
-    
-    // Apply scroll immediately for that mechanical typewriter feel
     container.scrollTop = targetScroll;
   }, [isTypewriterMode]);
 
-  // Sync scroll whenever content or selection changes
-  useEffect(() => {
+  // Use useLayoutEffect to update scroll position BEFORE the browser repaints
+  useLayoutEffect(() => {
     if (isTypewriterMode) {
-      // Use requestAnimationFrame to ensure the DOM has updated before measuring caret
-      requestAnimationFrame(centerCaret);
+      centerCaret();
     }
   }, [centerCaret, content, caretLineIndex, isTypewriterMode]);
 
-  // Auto-save functionality
+  // Auto-save
   useEffect(() => {
     if (!id) return;
     const handler = setTimeout(() => {
@@ -105,7 +102,6 @@ const Editor = () => {
       setToolbarPos(null);
     }
     updateCaretLine(textarea);
-    if (isTypewriterMode) centerCaret();
   };
 
   const applyFormat = (type: string) => {
@@ -146,7 +142,6 @@ const Editor = () => {
     setContent(e.target.value);
     setIsSaved(false);
     updateCaretLine(e.target);
-    if (isTypewriterMode) centerCaret();
   };
 
   const handlePublish = useCallback(() => {
@@ -156,15 +151,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Focus Mask: The 40% mark is the top of the 100% opaque band
+  // Sharp Focus Mask: Exactly one line is visible, everything else is dimmed
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.1) 0%,
-    rgba(0, 0, 0, 0.1) ${FOCUS_TOP_PERCENT}%,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.15) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
-    rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT + 4}px),
-    rgba(0, 0, 0, 0.1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT + 4}px),
-    rgba(0, 0, 0, 0.1) 100%
+    rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.15) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.15) 100%
   )`;
 
   if (!id || !initialDraft) return null;
@@ -216,7 +211,7 @@ const Editor = () => {
         ref={mainRef}
         className={cn(
           "flex-1 flex justify-center overflow-y-auto relative transition-all duration-300",
-          isTypewriterMode ? "hide-scrollbar overflow-hidden cursor-none" : "p-8 md:p-16 lg:p-24"
+          isTypewriterMode ? "hide-scrollbar cursor-none" : "p-8 md:p-16 lg:p-24"
         )}
         style={isTypewriterMode ? {
           maskImage: typewriterMask,
