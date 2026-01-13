@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_TOP_PERCENT = 40; 
+const FOCUS_OFFSET_VH = 40; // The active line always sits at 40vh from the top
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,12 +46,11 @@ const Editor = () => {
     const container = mainRef.current;
     const textarea = contentRef.current;
     
-    // Get caret coordinates relative to the top of the textarea
+    // Get caret coordinates relative to the top of the textarea element
     const caret = getCaretCoordinates(textarea, textarea.selectionStart);
     
-    // Because the container has pt-[40vh], Line 1 (caret.top = 0) 
-    // is already at the 40% focus point when scrollTop is 0.
-    // As we type further down, we just scroll by the same amount.
+    // Since the textarea is nested inside a container with pt-[40vh],
+    // setting scrollTop to exactly caret.top keeps that line at the 40vh mark.
     container.scrollTop = caret.top;
   }, [isTypewriterMode]);
 
@@ -149,15 +148,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Sharp Focus Mask: Exactly one line is visible, everything else is dimmed
+  // Bulletproof Mask: Uses VH units to match the padding exactly
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.1) 0%,
-    rgba(0, 0, 0, 0.1) ${FOCUS_TOP_PERCENT}%,
-    rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
-    rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.1) 100%
+    rgba(0, 0, 0, 0.1) 0vh,
+    rgba(0, 0, 0, 0.1) ${FOCUS_OFFSET_VH}vh,
+    rgba(0, 0, 0, 1) ${FOCUS_OFFSET_VH}vh,
+    rgba(0, 0, 0, 1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.1) 100vh
   )`;
 
   if (!id || !initialDraft) return null;
@@ -208,8 +207,8 @@ const Editor = () => {
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center overflow-y-auto relative transition-all duration-300",
-          isTypewriterMode ? "hide-scrollbar cursor-none" : "p-8 md:p-16 lg:p-24"
+          "flex-1 flex justify-center overflow-y-auto relative",
+          isTypewriterMode ? "hide-scrollbar cursor-none" : "p-8 md:p-16 lg:p-24 transition-all duration-300"
         )}
         style={isTypewriterMode ? {
           maskImage: typewriterMask,
@@ -252,7 +251,7 @@ const Editor = () => {
               onKeyUp={(e) => { updateCaretLine(e.currentTarget); if (e.key === 'Escape') setToolbarPos(null); }}
               onMouseUp={(e) => updateCaretLine(e.currentTarget)}
               className={cn(
-                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none transition-all duration-300 m-0 p-0",
+                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none m-0 p-0",
                 isTypewriterMode ? "caret-[#00BFFF]" : "caret-primary"
               )}
               placeholder="Tell your story..."
