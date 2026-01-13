@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_TOP_PERCENT = 40; // The line stays at 40% of viewport height
+const FOCUS_TOP_PERCENT = 40; // The active line stays at 40% of viewport height
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -54,17 +54,17 @@ const Editor = () => {
     const titleHeight = titleRef.current?.offsetHeight || 0;
     const titleMargin = 32; // mb-8
     
-    // Calculate total distance from top of textarea to the caret
+    // Calculate total distance from top of content wrapper to the caret
     const absoluteCaretY = titleHeight + titleMargin + caret.top;
     
     // Target scroll so caret is at 40% of the viewport height
     const targetScroll = absoluteCaretY - (viewportHeight * (FOCUS_TOP_PERCENT / 100));
     
-    // Direct set for zero-latency lock (behavior: 'auto' is default/instant)
+    // Instant scroll to maintain the mechanical lock
     container.scrollTop = targetScroll;
   }, [isTypewriterMode, title]);
 
-  // Handle scroll sync whenever content or selection changes
+  // Sync scroll whenever content or selection changes
   useEffect(() => {
     if (isTypewriterMode) {
       centerCaret();
@@ -158,7 +158,7 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Focus Mask CSS: Fades everything but the active line (approx 32px height)
+  // Sharp Focus Mask: Exactly one line is visible, everything else is dimmed
   const typewriterMask = `linear-gradient(
     to bottom,
     rgba(0, 0, 0, 0.15) 0%,
@@ -185,7 +185,10 @@ const Editor = () => {
             variant="ghost" 
             size="icon" 
             className={cn("rounded-full", isTypewriterMode && "bg-primary text-primary-foreground")}
-            onClick={() => setIsTypewriterMode(!isTypewriterMode)}
+            onClick={() => {
+              setIsTypewriterMode(!isTypewriterMode);
+              if (!isTypewriterMode) setToolbarPos(null);
+            }}
             title="Typewriter Mode"
           >
             <Type className="h-5 w-5" />
@@ -212,14 +215,15 @@ const Editor = () => {
       >
         <div className={cn(
           "w-full max-w-3xl relative z-0",
-          isTypewriterMode && "py-[50vh]" // Added massive padding so first/last lines can reach center
+          isTypewriterMode && "py-[50vh]" // Allows first and last lines to be perfectly centered
         )}>
           <textarea
             ref={titleRef}
             value={title}
             onChange={handleTitleChange}
             className={cn(
-              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
+              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden transition-opacity duration-300",
+              isTypewriterMode && "caret-[#00BFFF]"
             )}
             placeholder="Title"
             rows={1}
@@ -245,11 +249,11 @@ const Editor = () => {
               onKeyUp={(e) => { updateCaretLine(e.currentTarget); if (e.key === 'Escape') setToolbarPos(null); }}
               onMouseUp={(e) => updateCaretLine(e.currentTarget)}
               className={cn(
-                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none",
-                isTypewriterMode && "caret-primary"
+                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none transition-opacity duration-300",
+                isTypewriterMode ? "caret-[#00BFFF]" : "caret-primary"
               )}
               placeholder="Tell your story..."
-              style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '80vh', padding: 0 }}
+              style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '60vh', padding: 0 }}
             />
           </div>
         </div>
