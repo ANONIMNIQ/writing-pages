@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_TOP_PERCENT = 40; 
+const FOCUS_TOP_PERCENT = 40; // The line stays at 40% of the viewport height
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,20 +50,22 @@ const Editor = () => {
     // Get the exact Y position of the cursor within the textarea
     const caret = getCaretCoordinates(textarea, textarea.selectionStart);
     
-    // In typewriter mode, the title is hidden, so we only care about caret.top
-    // within the textarea relative to the start of the padded container.
-    const absoluteCaretY = caret.top + (viewportHeight * 0.5); // Offset by the top padding
+    // In typewriter mode, the title is hidden. 
+    // The textarea is wrapped in a container with py-[50vh]
+    const absoluteCaretY = caret.top + (viewportHeight * 0.5);
     
-    // Target scroll so caret is at 40% of the viewport height
+    // We want the top of the line (absoluteCaretY) to be at 40% of viewport height
     const targetScroll = absoluteCaretY - (viewportHeight * (FOCUS_TOP_PERCENT / 100));
     
+    // Apply scroll immediately for that mechanical typewriter feel
     container.scrollTop = targetScroll;
   }, [isTypewriterMode]);
 
   // Sync scroll whenever content or selection changes
   useEffect(() => {
     if (isTypewriterMode) {
-      centerCaret();
+      // Use requestAnimationFrame to ensure the DOM has updated before measuring caret
+      requestAnimationFrame(centerCaret);
     }
   }, [centerCaret, content, caretLineIndex, isTypewriterMode]);
 
@@ -154,13 +156,14 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
+  // Focus Mask: The 40% mark is the top of the 100% opaque band
   const typewriterMask = `linear-gradient(
     to bottom,
     rgba(0, 0, 0, 0.1) 0%,
     rgba(0, 0, 0, 0.1) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
-    rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT + 4}px),
+    rgba(0, 0, 0, 0.1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT + 4}px),
     rgba(0, 0, 0, 0.1) 100%
   )`;
 
