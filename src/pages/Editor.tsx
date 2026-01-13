@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_OFFSET_VH = 40; 
+const FOCUS_OFFSET_VH = 40; // The percentage from top where the active line sits
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,22 +39,31 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  // Precise Centering: Keeps the cursor line at exactly the focus point
+  // Mechanical Typewriter Logic: Scroll the container so the caret is always at the focus point
   const centerCaret = useCallback(() => {
     if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
     
-    // We use requestAnimationFrame to ensure the textarea height 
-    // from useAutosizeTextArea is applied before we calculate scroll
+    // We use a double frame approach to ensure the DOM has updated and measured
     requestAnimationFrame(() => {
-      const container = mainRef.current;
-      const textarea = contentRef.current;
-      if (!container || !textarea) return;
+      requestAnimationFrame(() => {
+        const container = mainRef.current;
+        const textarea = contentRef.current;
+        if (!container || !textarea) return;
 
-      const caret = getCaretCoordinates(textarea, textarea.selectionStart);
-      container.scrollTop = caret.top;
+        // Get caret coordinates relative to the top of the textarea element
+        const caret = getCaretCoordinates(textarea, textarea.selectionStart);
+        
+        // Setting scrollTop to caret.top keeps that line at the top of the scrollable area.
+        // Since we have pt-[40vh], that "top" is exactly the 40vh mark in the viewport.
+        container.scrollTo({
+          top: caret.top,
+          behavior: 'instant' // Instant snap like a typewriter strike
+        });
+      });
     });
   }, [isTypewriterMode]);
 
+  // Sync scroll on content changes or selection moves
   useLayoutEffect(() => {
     if (isTypewriterMode) {
       centerCaret();
@@ -148,25 +157,27 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
+  // Sharp Focus Mask: Exactly the current line is opaque, everything else is heavily dimmed
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.1) 0vh,
-    rgba(0, 0, 0, 0.1) ${FOCUS_OFFSET_VH}vh,
+    rgba(0, 0, 0, 0.05) 0vh,
+    rgba(0, 0, 0, 0.05) ${FOCUS_OFFSET_VH}vh,
     rgba(0, 0, 0, 1) ${FOCUS_OFFSET_VH}vh,
     rgba(0, 0, 0, 1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.1) 100vh
+    rgba(0, 0, 0, 0.05) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.05) 100vh
   )`;
 
   if (!id || !initialDraft) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
       <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />
       
+      {/* Header fades out in typewriter mode */}
       <header className={cn(
-        "p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm transition-opacity duration-500",
-        isTypewriterMode ? "opacity-0 pointer-events-none absolute" : "opacity-100"
+        "p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm transition-all duration-700",
+        isTypewriterMode ? "opacity-0 -translate-y-full pointer-events-none absolute w-full" : "opacity-100 translate-y-0"
       )}>
         <div className="flex items-center space-x-4">
           <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
@@ -192,11 +203,12 @@ const Editor = () => {
         </div>
       </header>
 
+      {/* Exit Button - only visible on hover in typewriter mode */}
       {isTypewriterMode && (
         <Button 
           variant="ghost" 
           size="icon" 
-          className="fixed top-4 right-4 z-50 rounded-full opacity-30 hover:opacity-100"
+          className="fixed top-4 right-4 z-50 rounded-full opacity-0 hover:opacity-100 transition-opacity duration-300"
           onClick={() => setIsTypewriterMode(false)}
         >
           <Plus className="h-6 w-6 rotate-45" />
@@ -206,8 +218,8 @@ const Editor = () => {
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center overflow-y-auto relative",
-          isTypewriterMode ? "hide-scrollbar cursor-none" : "p-8 md:p-16 lg:p-24 transition-all duration-300"
+          "flex-1 flex justify-center overflow-y-auto relative scroll-smooth",
+          isTypewriterMode ? "hide-scrollbar cursor-none" : "p-8 md:p-16 lg:p-24"
         )}
         style={isTypewriterMode ? {
           maskImage: typewriterMask,
@@ -247,11 +259,20 @@ const Editor = () => {
               value={content}
               onChange={handleContentChange}
               onSelect={handleSelection}
-              onKeyUp={(e) => { updateCaretLine(e.currentTarget); if (e.key === 'Escape') setToolbarPos(null); }}
-              onMouseUp={(e) => updateCaretLine(e.currentTarget)}
+              onKeyUp={(e) => { 
+                updateCaretLine(e.currentTarget); 
+                if (e.key === 'Escape') setToolbarPos(null); 
+                if (isTypewriterMode) centerCaret();
+              }}
+              onMouseUp={(e) => {
+                updateCaretLine(e.currentTarget);
+                if (isTypewriterMode) centerCaret();
+              }}
               className={cn(
-                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none m-0 p-0",
-                isTypewriterMode ? "caret-[#00BFFF]" : "caret-primary"
+                "w-full resize-none text-xl focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none m-0 p-0",
+                isTypewriterMode 
+                  ? "font-mono caret-[#00BFFF] leading-[32px]" 
+                  : "font-serif caret-primary leading-[32px]"
               )}
               placeholder="Tell your story..."
               style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '60vh' }}
