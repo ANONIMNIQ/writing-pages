@@ -114,9 +114,9 @@ const Editor = () => {
           />
           
           {/* Content Input */}
-          <div className="flex space-x-4">
-            {/* Placeholder for the '+' button seen in Medium */}
-            <div className="pt-2">
+          <div className="relative">
+            {/* Placeholder for the '+' button seen in Medium, positioned absolutely to the left */}
+            <div className="absolute -left-12 top-0 pt-2 opacity-0 hover:opacity-100 transition-opacity">
               <Button variant="ghost" size="icon" className="rounded-full text-gray-400 hover:text-gray-600">
                 <Plus className="h-6 w-6" />
               </Button>
@@ -126,7 +126,7 @@ const Editor = () => {
               ref={contentRef}
               value={content}
               onChange={handleContentChange}
-              className="flex-1 resize-none text-xl font-serif leading-relaxed focus:outline-none bg-transparent placeholder:text-gray-300 overflow-hidden"
+              className="w-full resize-none text-xl font-serif leading-relaxed focus:outline-none bg-transparent placeholder:text-gray-300 overflow-hidden"
               placeholder="Tell your story..."
               rows={10}
             />
