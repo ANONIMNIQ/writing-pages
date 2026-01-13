@@ -54,20 +54,22 @@ const Editor = () => {
     const titleHeight = titleRef.current?.offsetHeight || 0;
     const titleMargin = 32; // mb-8
     
-    // Calculate total distance from top of container to the caret
+    // Calculate total distance from top of textarea to the caret
     const absoluteCaretY = titleHeight + titleMargin + caret.top;
     
     // Target scroll so caret is at 40% of the viewport height
     const targetScroll = absoluteCaretY - (viewportHeight * (FOCUS_TOP_PERCENT / 100));
     
-    // Direct set for zero-latency lock
+    // Direct set for zero-latency lock (behavior: 'auto' is default/instant)
     container.scrollTop = targetScroll;
   }, [isTypewriterMode, title]);
 
-  // Effect to handle scroll sync whenever content or selection changes
+  // Handle scroll sync whenever content or selection changes
   useEffect(() => {
-    centerCaret();
-  }, [centerCaret, content, caretLineIndex]);
+    if (isTypewriterMode) {
+      centerCaret();
+    }
+  }, [centerCaret, content, caretLineIndex, isTypewriterMode]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -159,12 +161,12 @@ const Editor = () => {
   // Focus Mask CSS: Fades everything but the active line (approx 32px height)
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.2) 0%,
-    rgba(0, 0, 0, 0.2) ${FOCUS_TOP_PERCENT}%,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.15) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.2) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.2) 100%
+    rgba(0, 0, 0, 0.15) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.15) 100%
   )`;
 
   if (!id || !initialDraft) return null;
@@ -199,8 +201,8 @@ const Editor = () => {
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center p-8 md:p-16 lg:p-24 overflow-y-auto relative scroll-smooth",
-          isTypewriterMode && "hide-scrollbar scroll-none"
+          "flex-1 flex justify-center overflow-y-auto relative",
+          isTypewriterMode ? "hide-scrollbar overflow-hidden" : "p-8 md:p-16 lg:p-24"
         )}
         style={isTypewriterMode ? {
           maskImage: typewriterMask,
@@ -208,7 +210,10 @@ const Editor = () => {
         } : {}}
         onScroll={() => !isTypewriterMode && setToolbarPos(null)}
       >
-        <div className="w-full max-w-3xl relative z-0">
+        <div className={cn(
+          "w-full max-w-3xl relative z-0",
+          isTypewriterMode && "py-[50vh]" // Added massive padding so first/last lines can reach center
+        )}>
           <textarea
             ref={titleRef}
             value={title}
