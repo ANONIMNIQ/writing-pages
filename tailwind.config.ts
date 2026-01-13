@@ -18,6 +18,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        // Using a standard serif stack to mimic the classic writing feel
+        serif: ['Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
