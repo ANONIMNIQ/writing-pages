@@ -148,16 +148,14 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Smooth Focus Mask: 
-  // Previous/Next lines are at 25% opacity (grey), 
-  // current line transitions smoothly to 100% opacity (black/white).
+  // Sharp Focus Mask: Ensures all non-focused lines are consistently 25% opacity.
   const typewriterMask = `linear-gradient(
     to bottom,
     rgba(0,0,0,0.25) 0%,
-    rgba(0,0,0,0.25) 30%,
-    rgba(0,0,0,1) 40%,
-    rgba(0,0,0,1) 44%,
-    rgba(0,0,0,0.25) 54%,
+    rgba(0,0,0,0.25) calc(${FOCUS_OFFSET_VH}vh - 1px),
+    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh),
+    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(0,0,0,0.25) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 1px),
     rgba(0,0,0,0.25) 100%
   )`;
 
