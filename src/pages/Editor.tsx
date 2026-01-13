@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,8 @@ import { Bell, User, Plus } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import { toast } from 'sonner';
 import { useAutosizeTextArea } from '@/hooks/use-autosize-textarea';
+
+const LINE_HEIGHT = 28; // Matching the text-xl leading-relaxed feel
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,13 +19,13 @@ const Editor = () => {
   const [title, setTitle] = useState(initialDraft?.title || 'Title');
   const [content, setContent] = useState(initialDraft?.content || 'Tell your story...');
   const [isSaved, setIsSaved] = useState(true);
+  const [caretLineIndex, setCaretLineIndex] = useState(0);
 
   const titleRef = useAutosizeTextArea(title);
   const contentRef = useAutosizeTextArea(content);
 
   useEffect(() => {
     if (!id || !initialDraft) {
-      // If ID is missing or draft not found, redirect to dashboard
       navigate('/');
       toast.error("Draft not found.");
     }
@@ -39,10 +41,16 @@ const Editor = () => {
         setIsSaved(true);
         toast.success("Draft saved.", { duration: 1500 });
       }
-    }, 1500); // Save every 1.5 seconds of inactivity
+    }, 1500);
 
     return () => clearTimeout(handler);
   }, [title, content, isSaved, id, updateDraft]);
+
+  const updateCaretLine = useCallback((textarea: HTMLTextAreaElement) => {
+    const textBeforeCaret = textarea.value.substring(0, textarea.selectionStart);
+    const lines = textBeforeCaret.split('\n');
+    setCaretLineIndex(lines.length - 1);
+  }, []);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTitle(e.target.value);
@@ -52,6 +60,15 @@ const Editor = () => {
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
     setIsSaved(false);
+    updateCaretLine(e.target);
+  };
+
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    updateCaretLine(e.currentTarget);
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    updateCaretLine(e.currentTarget);
   };
 
   const handlePublish = useCallback(() => {
@@ -62,7 +79,7 @@ const Editor = () => {
   }, [id, updateDraft, navigate]);
 
   if (!id || !initialDraft) {
-    return null; // Wait for redirect
+    return null;
   }
 
   return (
@@ -113,11 +130,16 @@ const Editor = () => {
             style={{ minHeight: '60px' }}
           />
           
-          {/* Content Input */}
+          {/* Content Input Area */}
           <div className="relative">
-            {/* Placeholder for the '+' button seen in Medium, positioned absolutely to the left */}
-            {/* Adjusted top position to -4px to center with the first line height (approx 32px) */}
-            <div className="absolute -left-12 top-[-4px] opacity-50 hover:opacity-100 transition-opacity">
+            {/* The '+' button follows caretLineIndex */}
+            <div 
+              className="absolute -left-12 transition-all duration-200 ease-out opacity-50 hover:opacity-100"
+              style={{ 
+                top: `${caretLineIndex * LINE_HEIGHT}px`,
+                transform: 'translateY(2px)' // Small adjustment to center with text
+              }}
+            >
               <Button variant="ghost" size="icon" className="rounded-full text-gray-400 hover:text-gray-600">
                 <Plus className="h-6 w-6" />
               </Button>
@@ -127,9 +149,14 @@ const Editor = () => {
               ref={contentRef}
               value={content}
               onChange={handleContentChange}
-              className="w-full resize-none text-xl font-serif leading-relaxed focus:outline-none bg-transparent placeholder:text-gray-300 overflow-hidden"
+              onKeyUp={handleKeyUp}
+              onMouseUp={handleMouseUp}
+              className="w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-gray-300 overflow-hidden"
               placeholder="Tell your story..."
-              rows={10}
+              style={{ 
+                lineHeight: `${LINE_HEIGHT}px`,
+                minHeight: '300px'
+              }}
             />
           </div>
         </div>
