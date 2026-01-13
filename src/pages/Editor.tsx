@@ -39,24 +39,20 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  // Precise Centering: Keeps the cursor line at exactly 40% of the viewport height
+  // Precise Centering: Keeps the cursor line at exactly the focus point
   const centerCaret = useCallback(() => {
     if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
     
     const container = mainRef.current;
     const textarea = contentRef.current;
-    const viewportHeight = container.clientHeight;
     
     // Get caret coordinates relative to the top of the textarea
     const caret = getCaretCoordinates(textarea, textarea.selectionStart);
     
-    // We want the caret line to be at FOCUS_TOP_PERCENT of the viewport.
-    // The textarea has a top padding of 50vh (0.5 * viewportHeight).
-    // The scroll position should be: (PaddingTop + CaretTop) - ViewportFocusPoint
-    // scrollTop = (0.5 * vh + caret.top) - (0.4 * vh) = 0.1 * vh + caret.top
-    const targetScroll = (viewportHeight * 0.1) + caret.top;
-    
-    container.scrollTop = targetScroll;
+    // Because the container has pt-[40vh], Line 1 (caret.top = 0) 
+    // is already at the 40% focus point when scrollTop is 0.
+    // As we type further down, we just scroll by the same amount.
+    container.scrollTop = caret.top;
   }, [isTypewriterMode]);
 
   // Use useLayoutEffect to update scroll position BEFORE the browser repaints
@@ -64,7 +60,7 @@ const Editor = () => {
     if (isTypewriterMode) {
       centerCaret();
     }
-  }, [centerCaret, content, caretLineIndex, isTypewriterMode]);
+  }, [centerCaret, content, isTypewriterMode]);
 
   // Auto-save
   useEffect(() => {
@@ -102,6 +98,7 @@ const Editor = () => {
       setToolbarPos(null);
     }
     updateCaretLine(textarea);
+    if (isTypewriterMode) centerCaret();
   };
 
   const applyFormat = (type: string) => {
@@ -142,6 +139,7 @@ const Editor = () => {
     setContent(e.target.value);
     setIsSaved(false);
     updateCaretLine(e.target);
+    if (isTypewriterMode) centerCaret();
   };
 
   const handlePublish = useCallback(() => {
@@ -154,12 +152,12 @@ const Editor = () => {
   // Sharp Focus Mask: Exactly one line is visible, everything else is dimmed
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.15) 0%,
-    rgba(0, 0, 0, 0.15) ${FOCUS_TOP_PERCENT}%,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.1) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.15) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.15) 100%
+    rgba(0, 0, 0, 0.1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.1) 100%
   )`;
 
   if (!id || !initialDraft) return null;
@@ -221,7 +219,7 @@ const Editor = () => {
       >
         <div className={cn(
           "w-full max-w-3xl relative z-0",
-          isTypewriterMode && "py-[50vh]" 
+          isTypewriterMode ? "pt-[40vh] pb-[60vh]" : "py-0" 
         )}>
           {!isTypewriterMode && (
             <textarea
@@ -254,11 +252,11 @@ const Editor = () => {
               onKeyUp={(e) => { updateCaretLine(e.currentTarget); if (e.key === 'Escape') setToolbarPos(null); }}
               onMouseUp={(e) => updateCaretLine(e.currentTarget)}
               className={cn(
-                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none transition-all duration-300",
+                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none transition-all duration-300 m-0 p-0",
                 isTypewriterMode ? "caret-[#00BFFF]" : "caret-primary"
               )}
               placeholder="Tell your story..."
-              style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '60vh', padding: 0 }}
+              style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '60vh' }}
             />
           </div>
         </div>
