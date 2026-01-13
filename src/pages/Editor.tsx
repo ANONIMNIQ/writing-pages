@@ -39,31 +39,33 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  // The core "Mechanical" logic: we scroll the container so the caret is exactly at the focus line.
+  // Mechanical Typewriter Centering Logic
   const centerCaret = useCallback(() => {
     if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
     
-    // Use requestAnimationFrame twice to ensure the DOM has finished all layout calculations (like textarea resizing)
+    // We use requestAnimationFrame to sync with the browser's render cycle
+    // to ensure the textarea height has updated before we measure the caret.
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const container = mainRef.current;
-        const textarea = contentRef.current;
-        if (!container || !textarea) return;
+      const container = mainRef.current;
+      const textarea = contentRef.current;
+      if (!container || !textarea) return;
 
-        const caret = getCaretCoordinates(textarea, textarea.selectionStart);
-        // We set the container's scrollTop to the caret's top position.
-        // Because the container has pt-[40vh], this puts the caret exactly at the 40vh mark.
-        container.scrollTop = caret.top;
-      });
+      // Get the absolute pixel offset of the caret within the textarea
+      const caret = getCaretCoordinates(textarea, textarea.selectionStart);
+      
+      // By setting scrollTop to caret.top, we align the caret's Y position 
+      // with the top of the scrollable viewport. Because the container has pt-[40vh], 
+      // the "top" of the viewport is actually at the 40vh mark.
+      container.scrollTop = caret.top;
     });
   }, [isTypewriterMode]);
 
-  // Sync scroll on content changes or selection moves
+  // Ensure centering on every keystroke and content change
   useLayoutEffect(() => {
     if (isTypewriterMode) {
       centerCaret();
     }
-  }, [centerCaret, content, isTypewriterMode]);
+  }, [content, isTypewriterMode, centerCaret]);
 
   // Auto-save
   useEffect(() => {
@@ -152,17 +154,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Linear gradient mask that dims text above and below the focus line
+  // Sharp Focus Mask: Exactly the current line is visible, everything else is faded
   const typewriterMask = `linear-gradient(
     to bottom,
-    transparent 0vh,
-    transparent ${FOCUS_OFFSET_VH - 10}vh,
-    rgba(0,0,0,0.1) ${FOCUS_OFFSET_VH - 5}vh,
-    rgba(0,0,0,1) ${FOCUS_OFFSET_VH}vh,
-    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(0,0,0,0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 5vh),
-    transparent calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 10vh),
-    transparent 100vh
+    rgba(0, 0, 0, 0.05) 0vh,
+    rgba(0, 0, 0, 0.05) calc(${FOCUS_OFFSET_VH}vh - 5vh),
+    rgba(0, 0, 0, 1) ${FOCUS_OFFSET_VH}vh,
+    rgba(0, 0, 0, 1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.05) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 5vh),
+    rgba(0, 0, 0, 0.05) 100vh
   )`;
 
   if (!id || !initialDraft) return null;
@@ -188,7 +188,7 @@ const Editor = () => {
             className="rounded-full"
             onClick={() => {
               setIsTypewriterMode(true);
-              // Small delay to ensure the container transition is ready
+              // Snap to position immediately when entering mode
               setTimeout(centerCaret, 50);
             }}
             title="Typewriter Mode"
