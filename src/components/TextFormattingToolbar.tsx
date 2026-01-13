@@ -1,6 +1,4 @@
-"use client";
-
-import React from 'react';
+import * as React from 'react';
 import { 
   Bold, 
   Italic, 
@@ -10,7 +8,6 @@ import {
   Quote, 
   MessageSquare 
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface TextFormattingToolbarProps {
   position: { top: number; left: number } | null;
@@ -52,7 +49,6 @@ const TextFormattingToolbar: React.FC<TextFormattingToolbarProps> = ({ position,
           </React.Fragment>
         ))}
       </div>
-      {/* Caret/Arrow */}
       <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-black" />
     </div>
   );

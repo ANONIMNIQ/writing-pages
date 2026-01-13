@@ -1,14 +1,15 @@
-import { useEffect, useRef } from 'react';
+import * as React from 'react';
 
 export const useAutosizeTextArea = (value: string) => {
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textAreaRef = React.useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (textAreaRef.current) {
+  React.useEffect(() => {
+    const textArea = textAreaRef.current;
+    if (textArea) {
       // Reset height to auto to correctly calculate the new height
-      textAreaRef.current.style.height = 'auto';
+      textArea.style.height = 'auto';
       // Set height to scroll height
-      textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
+      textArea.style.height = `${textArea.scrollHeight}px`;
     }
   }, [value]);
 
