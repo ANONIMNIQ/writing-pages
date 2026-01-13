@@ -116,7 +116,8 @@ const Editor = () => {
           {/* Content Input */}
           <div className="relative">
             {/* Placeholder for the '+' button seen in Medium, positioned absolutely to the left */}
-            <div className="absolute -left-12 top-0 pt-2 opacity-50 hover:opacity-100 transition-opacity">
+            {/* Adjusted top position to -4px to center with the first line height (approx 32px) */}
+            <div className="absolute -left-12 top-[-4px] opacity-50 hover:opacity-100 transition-opacity">
               <Button variant="ghost" size="icon" className="rounded-full text-gray-400 hover:text-gray-600">
                 <Plus className="h-6 w-6" />
               </Button>
