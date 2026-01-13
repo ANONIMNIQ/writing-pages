@@ -27,6 +27,7 @@ const Editor = () => {
   const [caretLineIndex, setCaretLineIndex] = useState(0);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
+  const [typewriterOffset, setTypewriterOffset] = useState(0);
 
   const mainRef = useRef<HTMLElement>(null);
   const titleRef = useAutosizeTextArea(title);
@@ -39,35 +40,34 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  // Mechanical Typewriter Centering Logic
+  // Mechanical Typewriter Engine: 
+  // We move the "paper" (the content div) up or down so the caret is always at the fixed focus line.
   const centerCaret = useCallback(() => {
-    if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
+    if (!isTypewriterMode || !contentRef.current) return;
     
-    // We use requestAnimationFrame to sync with the browser's render cycle
-    // to ensure the textarea height has updated before we measure the caret.
+    // We use requestAnimationFrame to ensure we measure AFTER the DOM has updated (important for line wrapping)
     requestAnimationFrame(() => {
-      const container = mainRef.current;
       const textarea = contentRef.current;
-      if (!container || !textarea) return;
+      if (!textarea) return;
 
-      // Get the absolute pixel offset of the caret within the textarea
+      // Get the pixel coordinates of the caret relative to the top of the textarea
       const caret = getCaretCoordinates(textarea, textarea.selectionStart);
       
-      // By setting scrollTop to caret.top, we align the caret's Y position 
-      // with the top of the scrollable viewport. Because the container has pt-[40vh], 
-      // the "top" of the viewport is actually at the 40vh mark.
-      container.scrollTop = caret.top;
+      // We shift the content wrapper up by exactly the caret's Y position.
+      // Since the wrapper has pt-[40vh], an offset of 0 puts the first line at 40vh.
+      // An offset of -32px puts the second line at 40vh.
+      setTypewriterOffset(-caret.top);
     });
   }, [isTypewriterMode]);
 
-  // Ensure centering on every keystroke and content change
+  // Force centering on every interaction in typewriter mode
   useLayoutEffect(() => {
     if (isTypewriterMode) {
       centerCaret();
     }
   }, [content, isTypewriterMode, centerCaret]);
 
-  // Auto-save
+  // Auto-save logic
   useEffect(() => {
     if (!id) return;
     const handler = setTimeout(() => {
@@ -154,15 +154,16 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Sharp Focus Mask: Exactly the current line is visible, everything else is faded
+  // Precise Focus Mask: Only the center line is crystal clear
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.05) 0vh,
-    rgba(0, 0, 0, 0.05) calc(${FOCUS_OFFSET_VH}vh - 5vh),
-    rgba(0, 0, 0, 1) ${FOCUS_OFFSET_VH}vh,
-    rgba(0, 0, 0, 1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.05) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 5vh),
-    rgba(0, 0, 0, 0.05) 100vh
+    transparent 0vh,
+    rgba(0,0,0,0.05) 10vh,
+    rgba(0,0,0,0.1) 30vh,
+    rgba(0,0,0,1) ${FOCUS_OFFSET_VH}vh,
+    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(0,0,0,0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 5vh),
+    transparent 80vh
   )`;
 
   if (!id || !initialDraft) return null;
@@ -188,8 +189,7 @@ const Editor = () => {
             className="rounded-full"
             onClick={() => {
               setIsTypewriterMode(true);
-              // Snap to position immediately when entering mode
-              setTimeout(centerCaret, 50);
+              setTimeout(centerCaret, 10);
             }}
             title="Typewriter Mode"
           >
@@ -217,18 +217,21 @@ const Editor = () => {
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center overflow-y-auto relative outline-none",
-          isTypewriterMode ? "hide-scrollbar cursor-none bg-background" : "p-8 md:p-16 lg:p-24"
+          "flex-1 flex justify-center relative outline-none",
+          isTypewriterMode ? "overflow-hidden cursor-none bg-background" : "p-8 md:p-16 lg:p-24 overflow-y-auto"
         )}
         style={isTypewriterMode ? {
           maskImage: typewriterMask,
           WebkitMaskImage: typewriterMask,
         } : {}}
       >
-        <div className={cn(
-          "w-full max-w-3xl relative z-0",
-          isTypewriterMode ? "pt-[40vh] pb-[60vh]" : "py-0" 
-        )}>
+        <div 
+          className={cn(
+            "w-full max-w-3xl relative z-0 transition-transform duration-100 ease-out",
+            isTypewriterMode ? "pt-[40vh]" : "py-0" 
+          )}
+          style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
+        >
           {!isTypewriterMode && (
             <textarea
               ref={titleRef}
