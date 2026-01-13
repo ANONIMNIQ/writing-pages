@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_OFFSET_VH = 40; // The active line always sits at 40vh from the top
+const FOCUS_OFFSET_VH = 40; 
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,18 +43,18 @@ const Editor = () => {
   const centerCaret = useCallback(() => {
     if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
     
-    const container = mainRef.current;
-    const textarea = contentRef.current;
-    
-    // Get caret coordinates relative to the top of the textarea element
-    const caret = getCaretCoordinates(textarea, textarea.selectionStart);
-    
-    // Since the textarea is nested inside a container with pt-[40vh],
-    // setting scrollTop to exactly caret.top keeps that line at the 40vh mark.
-    container.scrollTop = caret.top;
+    // We use requestAnimationFrame to ensure the textarea height 
+    // from useAutosizeTextArea is applied before we calculate scroll
+    requestAnimationFrame(() => {
+      const container = mainRef.current;
+      const textarea = contentRef.current;
+      if (!container || !textarea) return;
+
+      const caret = getCaretCoordinates(textarea, textarea.selectionStart);
+      container.scrollTop = caret.top;
+    });
   }, [isTypewriterMode]);
 
-  // Use useLayoutEffect to update scroll position BEFORE the browser repaints
   useLayoutEffect(() => {
     if (isTypewriterMode) {
       centerCaret();
@@ -148,7 +148,6 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Bulletproof Mask: Uses VH units to match the padding exactly
   const typewriterMask = `linear-gradient(
     to bottom,
     rgba(0, 0, 0, 0.1) 0vh,
