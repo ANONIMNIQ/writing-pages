@@ -7,7 +7,7 @@ import ExportOptions from '@/components/ExportOptions';
 import { toast } from 'sonner';
 import { useAutosizeTextArea } from '@/hooks/use-autosize-textarea';
 
-const LINE_HEIGHT = 28; // Matching the text-xl leading-relaxed feel
+const LINE_HEIGHT = 28; // Matching the text-xl line-height
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -132,16 +132,17 @@ const Editor = () => {
           
           {/* Content Input Area */}
           <div className="relative">
-            {/* The '+' button follows caretLineIndex */}
+            {/* The '+' button follows caretLineIndex and is centered within the line height */}
             <div 
-              className="absolute -left-12 transition-all duration-200 ease-out opacity-50 hover:opacity-100"
+              className="absolute -left-12 flex items-center justify-center transition-all duration-200 ease-out opacity-50 hover:opacity-100"
               style={{ 
                 top: `${caretLineIndex * LINE_HEIGHT}px`,
-                transform: 'translateY(2px)' // Small adjustment to center with text
+                height: `${LINE_HEIGHT}px`,
+                width: '40px'
               }}
             >
-              <Button variant="ghost" size="icon" className="rounded-full text-gray-400 hover:text-gray-600">
-                <Plus className="h-6 w-6" />
+              <Button variant="ghost" size="icon" className="rounded-full text-gray-400 hover:text-gray-600 h-8 w-8">
+                <Plus className="h-5 w-5" />
               </Button>
             </div>
             
@@ -155,7 +156,8 @@ const Editor = () => {
               placeholder="Tell your story..."
               style={{ 
                 lineHeight: `${LINE_HEIGHT}px`,
-                minHeight: '300px'
+                minHeight: '300px',
+                padding: 0
               }}
             />
           </div>
