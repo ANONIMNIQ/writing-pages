@@ -45,22 +45,16 @@ const Editor = () => {
   const centerCaret = useCallback(() => {
     if (!isTypewriterMode || !contentRef.current) return;
     
-    // We use requestAnimationFrame to ensure we measure AFTER the DOM has updated (important for line wrapping)
     requestAnimationFrame(() => {
       const textarea = contentRef.current;
       if (!textarea) return;
 
-      // Get the pixel coordinates of the caret relative to the top of the textarea
       const caret = getCaretCoordinates(textarea, textarea.selectionStart);
-      
-      // We shift the content wrapper up by exactly the caret's Y position.
-      // Since the wrapper has pt-[40vh], an offset of 0 puts the first line at 40vh.
-      // An offset of -32px puts the second line at 40vh.
+      // Move the entire content block so the caret line sits exactly at the FOCUS_OFFSET_VH line.
       setTypewriterOffset(-caret.top);
     });
   }, [isTypewriterMode]);
 
-  // Force centering on every interaction in typewriter mode
   useLayoutEffect(() => {
     if (isTypewriterMode) {
       centerCaret();
@@ -154,16 +148,17 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Precise Focus Mask: Only the center line is crystal clear
+  // Smooth Focus Mask: 
+  // Previous/Next lines are at 25% opacity (grey), 
+  // current line transitions smoothly to 100% opacity (black/white).
   const typewriterMask = `linear-gradient(
     to bottom,
-    transparent 0vh,
-    rgba(0,0,0,0.05) 10vh,
-    rgba(0,0,0,0.1) 30vh,
-    rgba(0,0,0,1) ${FOCUS_OFFSET_VH}vh,
-    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(0,0,0,0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 5vh),
-    transparent 80vh
+    rgba(0,0,0,0.25) 0%,
+    rgba(0,0,0,0.25) 30%,
+    rgba(0,0,0,1) 40%,
+    rgba(0,0,0,1) 44%,
+    rgba(0,0,0,0.25) 54%,
+    rgba(0,0,0,0.25) 100%
   )`;
 
   if (!id || !initialDraft) return null;
@@ -227,7 +222,7 @@ const Editor = () => {
       >
         <div 
           className={cn(
-            "w-full max-w-3xl relative z-0 transition-transform duration-100 ease-out",
+            "w-full max-w-3xl relative z-0 transition-transform duration-200 ease-out",
             isTypewriterMode ? "pt-[40vh]" : "py-0" 
           )}
           style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
