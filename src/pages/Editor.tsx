@@ -163,7 +163,8 @@ const Editor = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
-      <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />
+      {/* Hide formatting toolbar in typewriter mode */}
+      {!isTypewriterMode && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
       
       <header className={cn(
         "p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm transition-all duration-700",
@@ -198,9 +199,9 @@ const Editor = () => {
 
       {isTypewriterMode && (
         <Button 
-          variant="ghost" 
+          variant="secondary" 
           size="icon" 
-          className="fixed top-4 right-4 z-50 rounded-full opacity-10 hover:opacity-100 transition-opacity duration-300"
+          className="fixed top-4 right-4 z-50 rounded-full opacity-80 hover:opacity-100 transition-opacity duration-300"
           onClick={() => setIsTypewriterMode(false)}
         >
           <Plus className="h-6 w-6 rotate-45" />
