@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Bell, User, Plus, Type } from 'lucide-react';
+import { Bell, User, Plus, Type, ChevronLeft } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -12,7 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
-const FOCUS_TOP_PERCENT = 40; // The active line stays at 40% of viewport height
+const FOCUS_TOP_PERCENT = 40; 
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,19 +50,15 @@ const Editor = () => {
     // Get the exact Y position of the cursor within the textarea
     const caret = getCaretCoordinates(textarea, textarea.selectionStart);
     
-    // Calculate vertical offset including title height
-    const titleHeight = titleRef.current?.offsetHeight || 0;
-    const titleMargin = 32; // mb-8
-    
-    // Calculate total distance from top of content wrapper to the caret
-    const absoluteCaretY = titleHeight + titleMargin + caret.top;
+    // In typewriter mode, the title is hidden, so we only care about caret.top
+    // within the textarea relative to the start of the padded container.
+    const absoluteCaretY = caret.top + (viewportHeight * 0.5); // Offset by the top padding
     
     // Target scroll so caret is at 40% of the viewport height
     const targetScroll = absoluteCaretY - (viewportHeight * (FOCUS_TOP_PERCENT / 100));
     
-    // Instant scroll to maintain the mechanical lock
     container.scrollTop = targetScroll;
-  }, [isTypewriterMode, title]);
+  }, [isTypewriterMode]);
 
   // Sync scroll whenever content or selection changes
   useEffect(() => {
@@ -158,37 +154,38 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate]);
 
-  // Sharp Focus Mask: Exactly one line is visible, everything else is dimmed
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.15) 0%,
-    rgba(0, 0, 0, 0.15) ${FOCUS_TOP_PERCENT}%,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.1) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
     rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.15) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
-    rgba(0, 0, 0, 0.15) 100%
+    rgba(0, 0, 0, 0.1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.1) 100%
   )`;
 
   if (!id || !initialDraft) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300 overflow-hidden">
       <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />
       
-      <header className="p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm">
+      <header className={cn(
+        "p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm transition-opacity duration-500",
+        isTypewriterMode ? "opacity-0 pointer-events-none absolute" : "opacity-100"
+      )}>
         <div className="flex items-center space-x-4">
-          <Link to="/" className="text-xl font-serif font-bold tracking-tight">Dyad Writer</Link>
+          <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
+            <ChevronLeft className="mr-1 h-5 w-5" /> Dyad Writer
+          </Link>
           <span className="text-sm text-muted-foreground">{isSaved ? 'Saved' : 'Saving...'}</span>
         </div>
         <div className="flex items-center space-x-2">
           <Button 
             variant="ghost" 
             size="icon" 
-            className={cn("rounded-full", isTypewriterMode && "bg-primary text-primary-foreground")}
-            onClick={() => {
-              setIsTypewriterMode(!isTypewriterMode);
-              if (!isTypewriterMode) setToolbarPos(null);
-            }}
+            className="rounded-full"
+            onClick={() => setIsTypewriterMode(true)}
             title="Typewriter Mode"
           >
             <Type className="h-5 w-5" />
@@ -201,11 +198,22 @@ const Editor = () => {
         </div>
       </header>
 
+      {isTypewriterMode && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="fixed top-4 right-4 z-50 rounded-full opacity-30 hover:opacity-100"
+          onClick={() => setIsTypewriterMode(false)}
+        >
+          <Plus className="h-6 w-6 rotate-45" />
+        </Button>
+      )}
+
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center overflow-y-auto relative",
-          isTypewriterMode ? "hide-scrollbar overflow-hidden" : "p-8 md:p-16 lg:p-24"
+          "flex-1 flex justify-center overflow-y-auto relative transition-all duration-300",
+          isTypewriterMode ? "hide-scrollbar overflow-hidden cursor-none" : "p-8 md:p-16 lg:p-24"
         )}
         style={isTypewriterMode ? {
           maskImage: typewriterMask,
@@ -215,19 +223,18 @@ const Editor = () => {
       >
         <div className={cn(
           "w-full max-w-3xl relative z-0",
-          isTypewriterMode && "py-[50vh]" // Allows first and last lines to be perfectly centered
+          isTypewriterMode && "py-[50vh]" 
         )}>
-          <textarea
-            ref={titleRef}
-            value={title}
-            onChange={handleTitleChange}
-            className={cn(
-              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden transition-opacity duration-300",
-              isTypewriterMode && "caret-[#00BFFF]"
-            )}
-            placeholder="Title"
-            rows={1}
-          />
+          {!isTypewriterMode && (
+            <textarea
+              ref={titleRef}
+              value={title}
+              onChange={handleTitleChange}
+              className="w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
+              placeholder="Title"
+              rows={1}
+            />
+          )}
           
           <div className="relative">
             {!isTypewriterMode && (
@@ -249,7 +256,7 @@ const Editor = () => {
               onKeyUp={(e) => { updateCaretLine(e.currentTarget); if (e.key === 'Escape') setToolbarPos(null); }}
               onMouseUp={(e) => updateCaretLine(e.currentTarget)}
               className={cn(
-                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none transition-opacity duration-300",
+                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none transition-all duration-300",
                 isTypewriterMode ? "caret-[#00BFFF]" : "caret-primary"
               )}
               placeholder="Tell your story..."
