@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Bell, User, Plus, Type, Layout } from 'lucide-react';
+import { Bell, User, Plus, Type } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -11,7 +11,7 @@ import { useAutosizeTextArea } from '@/hooks/use-autosize-textarea';
 import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
-const LINE_HEIGHT = 32; // Increased line height for better typewriter feel
+const LINE_HEIGHT = 32;
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +21,7 @@ const Editor = () => {
   const initialDraft = id ? getDraft(id) : undefined;
 
   const [title, setTitle] = useState(initialDraft?.title || 'Title');
-  const [content, setContent] = useState(initialDraft?.content || 'Tell your story...');
+  const [content, setContent] = useState(initialDraft?.content || '');
   const [isSaved, setIsSaved] = useState(true);
   const [caretLineIndex, setCaretLineIndex] = useState(0);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
@@ -38,28 +38,27 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  // Typewriter Mode: Scroll to center current line
+  // Precise Centering for Typewriter Mode
+  const centerCaret = useCallback(() => {
+    if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
+    
+    const container = mainRef.current;
+    const viewportHeight = container.clientHeight;
+    
+    // Calculate the exact vertical position of the current line
+    const titleHeight = titleRef.current?.offsetHeight || 0;
+    const titleMargin = 32; // mb-8
+    const lineOffset = caretLineIndex * LINE_HEIGHT;
+    
+    // We want this line to be at exactly 40% from the top (classic typewriter feel)
+    const targetScroll = (titleHeight + titleMargin + lineOffset) - (viewportHeight * 0.4);
+    
+    container.scrollTop = targetScroll;
+  }, [isTypewriterMode, caretLineIndex, title]);
+
   useEffect(() => {
-    if (isTypewriterMode && mainRef.current && contentRef.current) {
-      const container = mainRef.current;
-      const textarea = contentRef.current;
-      const rect = textarea.getBoundingClientRect();
-      const viewportHeight = container.clientHeight;
-      
-      // Calculate the target scroll position
-      // We want the current line (caretLineIndex * LINE_HEIGHT) to be at (viewportHeight / 2)
-      const lineOffset = caretLineIndex * LINE_HEIGHT;
-      const titleHeight = titleRef.current?.scrollHeight || 0;
-      const titleMargin = 32; // mb-8
-      
-      const targetScroll = (titleHeight + titleMargin + lineOffset) - (viewportHeight / 2) + (LINE_HEIGHT / 2);
-      
-      container.scrollTo({
-        top: targetScroll,
-        behavior: 'smooth'
-      });
-    }
-  }, [caretLineIndex, isTypewriterMode, title]);
+    centerCaret();
+  }, [centerCaret]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -68,9 +67,8 @@ const Editor = () => {
       if (!isSaved) {
         updateDraft(id, { title, content });
         setIsSaved(true);
-        toast.success("Draft saved.", { duration: 1000 });
       }
-    }, 1500);
+    }, 1000);
     return () => clearTimeout(handler);
   }, [title, content, isSaved, id, updateDraft]);
 
@@ -153,7 +151,7 @@ const Editor = () => {
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
       <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />
       
-      <header className="p-4 border-b border-border/50 flex justify-between items-center z-10 bg-background/80 backdrop-blur-sm">
+      <header className="p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm">
         <div className="flex items-center space-x-4">
           <Link to="/" className="text-xl font-serif font-bold tracking-tight">Dyad Writer</Link>
           <span className="text-sm text-muted-foreground">{isSaved ? 'Saved' : 'Saving...'}</span>
@@ -162,7 +160,7 @@ const Editor = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className={cn("rounded-full", isTypewriterMode && "bg-accent text-accent-foreground")}
+            className={cn("rounded-full", isTypewriterMode && "bg-primary text-primary-foreground")}
             onClick={() => setIsTypewriterMode(!isTypewriterMode)}
             title="Typewriter Mode"
           >
@@ -179,27 +177,23 @@ const Editor = () => {
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center p-8 md:p-16 lg:p-24 overflow-y-auto scroll-smooth relative",
-          isTypewriterMode && "cursor-text"
+          "flex-1 flex justify-center p-8 md:p-16 lg:p-24 overflow-y-auto relative",
+          isTypewriterMode && "hide-scrollbar scroll-none"
         )}
-        onScroll={() => setToolbarPos(null)}
+        style={isTypewriterMode ? {
+          maskImage: 'linear-gradient(to bottom, transparent, black 40%, black 50%, transparent)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 40%, black 50%, transparent)',
+        } : {}}
+        onScroll={() => !isTypewriterMode && setToolbarPos(null)}
       >
-        {/* Typewriter Mode Faded Overlays */}
-        {isTypewriterMode && (
-          <>
-            <div className="fixed inset-x-0 top-16 h-1/3 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-10" />
-            <div className="fixed inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-10" />
-          </>
-        )}
-
         <div className="w-full max-w-3xl relative z-0">
           <textarea
             ref={titleRef}
             value={title}
             onChange={handleTitleChange}
             className={cn(
-              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden transition-opacity duration-500",
-              isTypewriterMode && caretLineIndex > 0 ? "opacity-20" : "opacity-100"
+              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden transition-opacity duration-300",
+              isTypewriterMode && caretLineIndex > 0 ? "opacity-10" : "opacity-100"
             )}
             placeholder="Title"
             rows={1}
@@ -225,16 +219,13 @@ const Editor = () => {
               onKeyUp={(e) => { updateCaretLine(e.currentTarget); if (e.key === 'Escape') setToolbarPos(null); }}
               onMouseUp={(e) => updateCaretLine(e.currentTarget)}
               className={cn(
-                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden",
-                isTypewriterMode && "caret-blue-500"
+                "w-full resize-none text-xl font-serif focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden outline-none",
+                isTypewriterMode && "caret-primary"
               )}
               placeholder="Tell your story..."
-              style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '600px', padding: 0 }}
+              style={{ lineHeight: `${LINE_HEIGHT}px`, minHeight: '80vh', padding: 0 }}
             />
           </div>
-          
-          {/* Add extra padding at the bottom so we can always center the last line */}
-          {isTypewriterMode && <div style={{ height: '50vh' }} />}
         </div>
       </main>
     </div>
