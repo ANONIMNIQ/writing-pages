@@ -12,6 +12,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 32;
+const FOCUS_TOP_PERCENT = 40; // The line stays at 40% of viewport height
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,22 +44,30 @@ const Editor = () => {
     if (!isTypewriterMode || !mainRef.current || !contentRef.current) return;
     
     const container = mainRef.current;
+    const textarea = contentRef.current;
     const viewportHeight = container.clientHeight;
     
-    // Calculate the exact vertical position of the current line
+    // Get the exact Y position of the cursor within the textarea
+    const caret = getCaretCoordinates(textarea, textarea.selectionStart);
+    
+    // Calculate vertical offset including title height
     const titleHeight = titleRef.current?.offsetHeight || 0;
     const titleMargin = 32; // mb-8
-    const lineOffset = caretLineIndex * LINE_HEIGHT;
     
-    // We want this line to be at exactly 40% from the top (classic typewriter feel)
-    const targetScroll = (titleHeight + titleMargin + lineOffset) - (viewportHeight * 0.4);
+    // Calculate total distance from top of container to the caret
+    const absoluteCaretY = titleHeight + titleMargin + caret.top;
     
+    // Target scroll so caret is at 40% of the viewport height
+    const targetScroll = absoluteCaretY - (viewportHeight * (FOCUS_TOP_PERCENT / 100));
+    
+    // Direct set for zero-latency lock
     container.scrollTop = targetScroll;
-  }, [isTypewriterMode, caretLineIndex, title]);
+  }, [isTypewriterMode, title]);
 
+  // Effect to handle scroll sync whenever content or selection changes
   useEffect(() => {
     centerCaret();
-  }, [centerCaret]);
+  }, [centerCaret, content, caretLineIndex]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -96,6 +105,7 @@ const Editor = () => {
       setToolbarPos(null);
     }
     updateCaretLine(textarea);
+    if (isTypewriterMode) centerCaret();
   };
 
   const applyFormat = (type: string) => {
@@ -136,6 +146,7 @@ const Editor = () => {
     setContent(e.target.value);
     setIsSaved(false);
     updateCaretLine(e.target);
+    if (isTypewriterMode) centerCaret();
   };
 
   const handlePublish = useCallback(() => {
@@ -144,6 +155,17 @@ const Editor = () => {
     toast.success("Entry published!");
     navigate('/');
   }, [id, updateDraft, navigate]);
+
+  // Focus Mask CSS: Fades everything but the active line (approx 32px height)
+  const typewriterMask = `linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.2) 0%,
+    rgba(0, 0, 0, 0.2) ${FOCUS_TOP_PERCENT}%,
+    rgba(0, 0, 0, 1) ${FOCUS_TOP_PERCENT}%,
+    rgba(0, 0, 0, 1) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.2) calc(${FOCUS_TOP_PERCENT}% + ${LINE_HEIGHT}px),
+    rgba(0, 0, 0, 0.2) 100%
+  )`;
 
   if (!id || !initialDraft) return null;
 
@@ -177,12 +199,12 @@ const Editor = () => {
       <main 
         ref={mainRef}
         className={cn(
-          "flex-1 flex justify-center p-8 md:p-16 lg:p-24 overflow-y-auto relative",
+          "flex-1 flex justify-center p-8 md:p-16 lg:p-24 overflow-y-auto relative scroll-smooth",
           isTypewriterMode && "hide-scrollbar scroll-none"
         )}
         style={isTypewriterMode ? {
-          maskImage: 'linear-gradient(to bottom, transparent, black 40%, black 50%, transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 40%, black 50%, transparent)',
+          maskImage: typewriterMask,
+          WebkitMaskImage: typewriterMask,
         } : {}}
         onScroll={() => !isTypewriterMode && setToolbarPos(null)}
       >
@@ -192,8 +214,7 @@ const Editor = () => {
             value={title}
             onChange={handleTitleChange}
             className={cn(
-              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden transition-opacity duration-300",
-              isTypewriterMode && caretLineIndex > 0 ? "opacity-10" : "opacity-100"
+              "w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
             )}
             placeholder="Title"
             rows={1}
