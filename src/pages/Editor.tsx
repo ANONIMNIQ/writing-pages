@@ -7,7 +7,6 @@ import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { toast } from 'sonner';
-import getCaretCoordinates from 'textarea-caret';
 import { cn } from '@/lib/utils';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
@@ -27,13 +26,14 @@ const Editor = () => {
   const [contentHtml, setContentHtml] = useState('');
   const [isSaved, setIsSaved] = useState(true);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
+  const [plusButtonTop, setPlusButtonTop] = useState<number | null>(null);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
   const [typewriterOffset, setTypewriterOffset] = useState(0);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize content: Convert Markdown to HTML for visual editing
+  // Initialize content
   useEffect(() => {
     if (initialDraft && !contentHtml) {
       const html = marked.parse(initialDraft.content) as string;
@@ -48,23 +48,35 @@ const Editor = () => {
     }
   }, [id, initialDraft, navigate]);
 
-  const centerCaret = useCallback(() => {
-    if (!isTypewriterMode || !editorRef.current) return;
-    
+  const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    const editorRect = editorRef.current.getBoundingClientRect();
+    const editorRect = editorRef.current?.getBoundingClientRect();
 
-    if (rect.top !== 0) {
-      const relativeTop = rect.top - editorRect.top;
-      setTypewriterOffset(-relativeTop);
+    if (editorRect) {
+      // Position the plus button at the current line start
+      setPlusButtonTop(rect.top - editorRect.top);
+
+      if (isTypewriterMode) {
+        const relativeTop = rect.top - editorRect.top;
+        setTypewriterOffset(-relativeTop);
+      }
+    }
+
+    if (!selection.isCollapsed) {
+      setToolbarPos({
+        top: rect.top + window.scrollY,
+        left: rect.left + rect.width / 2 + window.scrollX
+      });
+    } else {
+      setToolbarPos(null);
     }
   }, [isTypewriterMode]);
 
-  // Auto-save logic: Convert HTML back to Markdown for storage
+  // Auto-save logic
   useEffect(() => {
     if (!id) return;
     const handler = setTimeout(() => {
@@ -80,23 +92,7 @@ const Editor = () => {
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     setContentHtml(e.currentTarget.innerHTML);
     setIsSaved(false);
-    if (isTypewriterMode) centerCaret();
-  };
-
-  const handleSelection = () => {
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      
-      setToolbarPos({
-        top: rect.top + window.scrollY,
-        left: rect.left + rect.width / 2 + window.scrollX
-      });
-    } else {
-      setToolbarPos(null);
-    }
-    if (isTypewriterMode) centerCaret();
+    updateCaretInfo();
   };
 
   const applyFormat = (type: string) => {
@@ -150,7 +146,7 @@ const Editor = () => {
             className="rounded-full"
             onClick={() => {
               setIsTypewriterMode(true);
-              setTimeout(centerCaret, 50);
+              setTimeout(updateCaretInfo, 50);
             }}
             title="Typewriter Mode"
           >
@@ -187,7 +183,7 @@ const Editor = () => {
       >
         <div 
           className={cn(
-            "w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out",
+            "w-full max-w-3xl relative z-0 transition-transform duration-300 ease-out",
             isTypewriterMode ? "pt-[40vh]" : "py-0" 
           )}
           style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
@@ -203,22 +199,36 @@ const Editor = () => {
             />
           )}
           
-          <div 
-            ref={editorRef}
-            contentEditable
-            onInput={handleInput}
-            onSelect={handleSelection}
-            onKeyUp={handleSelection}
-            onMouseUp={handleSelection}
-            className={cn(
-              "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-lg dark:prose-invert max-w-none",
-              isTypewriterMode 
-                ? "font-mono caret-[#00BFFF] leading-[32px] cursor-text" 
-                : "font-serif caret-primary leading-[32px] cursor-text"
+          <div className="relative">
+            {/* Restored Plus Button for the current line */}
+            {!isTypewriterMode && plusButtonTop !== null && (
+              <div 
+                className="absolute -left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100"
+                style={{ top: `${plusButtonTop}px`, height: `${LINE_HEIGHT}px`, width: '40px' }}
+              >
+                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground h-8 w-8">
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </div>
             )}
-            style={{ lineHeight: `${LINE_HEIGHT}px` }}
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
-          />
+
+            <div 
+              ref={editorRef}
+              contentEditable
+              onInput={handleInput}
+              onSelect={updateCaretInfo}
+              onKeyUp={updateCaretInfo}
+              onMouseUp={updateCaretInfo}
+              className={cn(
+                "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-lg dark:prose-invert max-w-none",
+                isTypewriterMode 
+                  ? "font-mono caret-[#00BFFF] leading-[32px] cursor-text" 
+                  : "font-serif caret-primary leading-[32px] cursor-text"
+              )}
+              style={{ lineHeight: `${LINE_HEIGHT}px` }}
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
+          </div>
         </div>
       </main>
     </div>
