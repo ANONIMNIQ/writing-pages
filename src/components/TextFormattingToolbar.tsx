@@ -2,11 +2,9 @@ import * as React from 'react';
 import { 
   Bold, 
   Italic, 
-  Link as LinkIcon, 
   Heading1, 
   Heading2, 
-  Quote, 
-  MessageSquare 
+  Quote
 } from 'lucide-react';
 
 interface TextFormattingToolbarProps {
@@ -20,11 +18,9 @@ const TextFormattingToolbar: React.FC<TextFormattingToolbarProps> = ({ position,
   const buttons = [
     { icon: Bold, label: 'Bold', action: 'bold' },
     { icon: Italic, label: 'Italic', action: 'italic' },
-    { icon: LinkIcon, label: 'Link', action: 'link' },
     { icon: Heading1, label: 'H1', action: 'h1' },
     { icon: Heading2, label: 'H2', action: 'h2' },
     { icon: Quote, label: 'Quote', action: 'quote' },
-    { icon: MessageSquare, label: 'Note', action: 'note' },
   ];
 
   return (
@@ -45,7 +41,7 @@ const TextFormattingToolbar: React.FC<TextFormattingToolbarProps> = ({ position,
             >
               <btn.icon size={18} />
             </button>
-            {i === 2 && <div className="w-[1px] h-4 bg-gray-700 mx-1" />}
+            {i === 1 && <div className="w-[1px] h-4 bg-gray-700 mx-1" />}
           </React.Fragment>
         ))}
       </div>
