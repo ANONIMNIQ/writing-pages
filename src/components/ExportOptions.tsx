@@ -11,24 +11,32 @@ interface ExportOptionsProps {
 
 const ExportOptions: React.FC<ExportOptionsProps> = ({ title, content }) => {
   
-  const handleExport = (format: 'txt' | 'pdf' | 'docx') => {
-    
-    // Simple TXT download implementation for basic functionality
+  const handleExport = (format: 'txt' | 'md' | 'pdf' | 'docx') => {
+    let blob: Blob;
+    let extension: string;
+
     if (format === 'txt') {
       const textContent = `${title}\n\n${content}`;
-      const blob = new Blob([textContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success("TXT file downloaded successfully.");
+      blob = new Blob([textContent], { type: 'text/plain' });
+      extension = 'txt';
+    } else if (format === 'md') {
+      const mdContent = `# ${title}\n\n${content}`;
+      blob = new Blob([mdContent], { type: 'text/markdown' });
+      extension = 'md';
     } else {
       toast.info(`Exporting "${title}" as ${format.toUpperCase()}... (Functionality pending implementation)`);
+      return;
     }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${extension}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${extension.toUpperCase()} file downloaded successfully.`);
   };
 
   return (
@@ -40,7 +48,10 @@ const ExportOptions: React.FC<ExportOptionsProps> = ({ title, content }) => {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => handleExport('txt')}>
-          Export as TXT
+          Export as Plain Text (.txt)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport('md')}>
+          Export as Markdown (.md)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport('pdf')}>
           Export as PDF (Coming Soon)

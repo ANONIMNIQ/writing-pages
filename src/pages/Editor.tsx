@@ -58,10 +58,12 @@ const Editor = () => {
 
     if (editorRect) {
       // Position the plus button at the current line start
-      setPlusButtonTop(rect.top - editorRect.top);
+      // We align the button's center with the caret's vertical center
+      const relativeTop = rect.top - editorRect.top;
+      const caretHeight = rect.height || LINE_HEIGHT;
+      setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
 
       if (isTypewriterMode) {
-        const relativeTop = rect.top - editorRect.top;
         setTypewriterOffset(-relativeTop);
       }
     }
@@ -183,7 +185,7 @@ const Editor = () => {
       >
         <div 
           className={cn(
-            "w-full max-w-3xl relative z-0 transition-transform duration-300 ease-out",
+            "w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out",
             isTypewriterMode ? "pt-[40vh]" : "py-0" 
           )}
           style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
@@ -200,7 +202,7 @@ const Editor = () => {
           )}
           
           <div className="relative">
-            {/* Restored Plus Button for the current line */}
+            {/* Centered Plus Button for the current line */}
             {!isTypewriterMode && plusButtonTop !== null && (
               <div 
                 className="absolute -left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100"
