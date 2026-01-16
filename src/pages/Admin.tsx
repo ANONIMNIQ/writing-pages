@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableTableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronLeft, Shield, User as UserIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -76,16 +76,16 @@ const Admin = () => {
         <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
           <Table>
             <TableHeader>
-              <TableTableRow>
+              <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Last Active</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
-              </TableTableRow>
+              </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
-                <TableTableRow key={user.id}>
+                <TableRow key={user.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
@@ -110,7 +110,7 @@ const Admin = () => {
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">Manage</Button>
                   </TableCell>
-                </TableTableRow>
+                </TableRow>
               ))}
             </TableBody>
           </Table>
