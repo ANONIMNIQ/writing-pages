@@ -39,7 +39,7 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
   ) : null;
 
   return (
-    <div className="group flex items-center justify-between py-2 border-b border-transparent hover:border-border/30 transition-all">
+    <div className="group flex items-center justify-between py-3 border-b border-border/10 hover:border-border/40 transition-all px-2 rounded-lg hover:bg-accent/5">
       <Link 
         to={`/editor/${draft.id}`} 
         className={cn(
@@ -64,7 +64,8 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              className="h-9 w-9 opacity-40 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              title="Delete entry"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -82,7 +83,7 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
                 onClick={() => onDelete?.(draft.id)}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               >
-                Delete
+                Delete Permanently
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
