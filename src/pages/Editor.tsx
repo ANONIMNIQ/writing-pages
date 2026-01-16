@@ -20,9 +20,8 @@ const Editor = () => {
   const navigate = useNavigate();
   const { getDraft, updateDraft } = useDrafts();
   
-  const initialDraft = id ? getDraft(id) : undefined;
-
-  const [title, setTitle] = useState(initialDraft?.title || 'Title');
+  const [initialDraft, setInitialDraft] = useState<any>(null);
+  const [title, setTitle] = useState('Title');
   const [contentHtml, setContentHtml] = useState('');
   const [isSaved, setIsSaved] = useState(true);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
@@ -33,20 +32,24 @@ const Editor = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize content
+  // Fetch draft data
   useEffect(() => {
-    if (initialDraft && !contentHtml) {
-      const html = marked.parse(initialDraft.content) as string;
-      setContentHtml(html);
-    }
-  }, [initialDraft, contentHtml]);
-
-  useEffect(() => {
-    if (!id || !initialDraft) {
-      navigate('/');
-      toast.error("Draft not found.");
-    }
-  }, [id, initialDraft, navigate]);
+    const fetchDraft = async () => {
+      if (id) {
+        const draft = await getDraft(id);
+        if (draft) {
+          setInitialDraft(draft);
+          setTitle(draft.title || 'Title');
+          const html = marked.parse(draft.content || '') as string;
+          setContentHtml(html);
+        } else {
+          navigate('/');
+          toast.error("Draft not found.");
+        }
+      }
+    };
+    fetchDraft();
+  }, [id, getDraft, navigate]);
 
   const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
@@ -57,8 +60,6 @@ const Editor = () => {
     const editorRect = editorRef.current?.getBoundingClientRect();
 
     if (editorRect) {
-      // Position the plus button at the current line start
-      // We align the button's center with the caret's vertical center
       const relativeTop = rect.top - editorRect.top;
       const caretHeight = rect.height || LINE_HEIGHT;
       setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
@@ -108,9 +109,9 @@ const Editor = () => {
     setIsSaved(false);
   };
 
-  const handlePublish = useCallback(() => {
+  const handlePublish = useCallback(async () => {
     if (!id) return;
-    updateDraft(id, { status: 'published' });
+    await updateDraft(id, { status: 'published' });
     toast.success("Entry published!");
     navigate('/');
   }, [id, updateDraft, navigate]);
@@ -137,7 +138,7 @@ const Editor = () => {
       )}>
         <div className="flex items-center space-x-4">
           <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
-            <ChevronLeft className="mr-1 h-5 w-5" /> Dyad Writer
+            <ChevronLeft className="mr-1 h-5 w-5" /> Wr1te Pages
           </Link>
           <span className="text-sm text-muted-foreground">{isSaved ? 'Saved' : 'Saving...'}</span>
         </div>
@@ -202,7 +203,6 @@ const Editor = () => {
           )}
           
           <div className="relative">
-            {/* Centered Plus Button for the current line */}
             {!isTypewriterMode && plusButtonTop !== null && (
               <div 
                 className="absolute -left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100"
