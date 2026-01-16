@@ -1,12 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useDrafts } from '@/hooks/use-drafts';
 import DraftListItem from '@/components/DraftListItem';
 import { supabase } from '@/integrations/supabase/client';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Header } from '@/components/Header';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+const MAX_TITLE_LENGTH = 60;
 
 const Dashboard = () => {
-  const { drafts, createDraft, deleteDraft } = useDrafts();
+  const { drafts, createDraft, deleteDraft, updateDraft } = useDrafts();
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
 
@@ -24,6 +29,38 @@ const Dashboard = () => {
     };
     checkRole();
   }, []);
+
+  const handleQuickCreate = useCallback(async () => {
+    const trimmedTitle = quickTitle.trim();
+    if (trimmedTitle.length === 0) {
+      toast.error("Title cannot be empty.");
+      return;
+    }
+
+    const newId = await createDraft();
+    if (newId) {
+      // Update the newly created draft with the title
+      await updateDraft(newId, { title: trimmedTitle });
+      setQuickTitle(''); // Clear input after creation
+      navigate(`/editor/${newId}`);
+    } else {
+      toast.error("Failed to create new draft.");
+    }
+  }, [quickTitle, createDraft, updateDraft, navigate]);
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value.length <= MAX_TITLE_LENGTH) {
+      setQuickTitle(value);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleQuickCreate();
+    }
+  };
 
   const draftEntries = drafts.filter(d => d.status === 'draft');
   const publishedEntries = drafts.filter(d => d.status === 'published');
@@ -53,10 +90,14 @@ const Dashboard = () => {
                   placeholder="What's on your mind?"
                   className="bg-transparent border-none text-2xl md:text-4xl font-light italic tracking-tight placeholder:text-foreground/10 focus:outline-none w-full py-0"
                   value={quickTitle}
-                  onChange={(e) => setQuickTitle(e.target.value)}
-                  // Enter handled by Header's New Entry or simply starting to type here
+                  onChange={handleTitleChange}
+                  onKeyDown={handleKeyDown}
+                  maxLength={MAX_TITLE_LENGTH}
                 />
               </div>
+              <p className="text-right text-xs text-foreground/30 mt-1">
+                {quickTitle.length}/{MAX_TITLE_LENGTH}
+              </p>
             </div>
 
             <div className="space-y-1">
