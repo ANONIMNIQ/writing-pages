@@ -22,7 +22,7 @@ const Editor = () => {
   const navigate = useNavigate();
   const { getDraft, updateDraft } = useDrafts();
   
-  const [initialDraft, setInitialDraft] = useState<any>(null);
+  const [draftData, setDraftData] = useState<any>(null);
   const [title, setTitle] = useState('Title');
   const [contentHtml, setContentHtml] = useState('');
   const [isSaved, setIsSaved] = useState(true);
@@ -34,7 +34,7 @@ const Editor = () => {
 
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
-  const hasInitializedRef = useRef(false);
+  const isContentInitialized = useRef(false);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -51,19 +51,21 @@ const Editor = () => {
     checkRole();
   }, []);
 
-  // Fetch draft data
+  // Fetch draft data and initialize content
   useEffect(() => {
     const fetchDraft = async () => {
-      if (id && !initialDraft) {
+      if (id) {
         const draft = await getDraft(id);
         if (draft) {
-          setInitialDraft(draft);
+          setDraftData(draft);
           setTitle(draft.title || 'Title');
           const html = marked.parse(draft.content || '') as string;
           setContentHtml(html);
-          if (editorRef.current && !hasInitializedRef.current) {
+          
+          // Initialize contentEditable div only once after fetching data
+          if (editorRef.current && !isContentInitialized.current) {
             editorRef.current.innerHTML = html;
-            hasInitializedRef.current = true;
+            isContentInitialized.current = true;
           }
         } else {
           navigate('/');
@@ -72,7 +74,7 @@ const Editor = () => {
       }
     };
     fetchDraft();
-  }, [id, getDraft, navigate, initialDraft]);
+  }, [id, getDraft, navigate]);
 
   const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
@@ -89,7 +91,10 @@ const Editor = () => {
         setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
       }
       if (isTypewriterMode) {
-        setTypewriterOffset(-relativeTop);
+        // Calculate offset to keep caret near the focus line
+        const focusLineY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
+        const scrollOffset = focusLineY - rect.top;
+        setTypewriterOffset(scrollOffset);
       }
     }
 
@@ -103,17 +108,18 @@ const Editor = () => {
     }
   }, [isTypewriterMode]);
 
+  // Autosave effect
   useEffect(() => {
     if (!id) return;
     const handler = setTimeout(() => {
-      if (!isSaved) {
+      if (!isSaved && draftData) {
         const markdown = turndownService.turndown(contentHtml);
         updateDraft(id, { title, content: markdown });
         setIsSaved(true);
       }
     }, 1000);
     return () => clearTimeout(handler);
-  }, [title, contentHtml, isSaved, id, updateDraft]);
+  }, [title, contentHtml, isSaved, id, updateDraft, draftData]);
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     const newHtml = e.currentTarget.innerHTML;
@@ -124,6 +130,7 @@ const Editor = () => {
 
   const applyFormat = (type: string) => {
     document.execCommand(type, false);
+    // Ensure state is updated after execCommand
     if (editorRef.current) {
       setContentHtml(editorRef.current.innerHTML);
     }
@@ -154,7 +161,7 @@ const Editor = () => {
     rgba(0,0,0,0.25) 100%
   )`;
 
-  if (!id || !initialDraft) return null;
+  if (!id || !draftData) return null;
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
