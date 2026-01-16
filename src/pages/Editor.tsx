@@ -173,6 +173,17 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
+  // Corrected mask definition using white for visibility
+  const typewriterMask = `linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.25) 0%,
+    rgba(255,255,255,0.25) calc(${FOCUS_OFFSET_VH}vh - 1px),
+    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh),
+    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
+    rgba(255,255,255,0.25) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 1px),
+    rgba(255,255,255,0.25) 100%
+  )`;
+
   if (!id || !draftData) return null;
 
   return (
