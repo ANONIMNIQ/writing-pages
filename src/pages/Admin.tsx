@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronLeft, Shield, User as UserIcon } from 'lucide-react';
+import { ChevronLeft, Shield, User as UserIcon, Mail } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -32,7 +32,7 @@ const Admin = () => {
         return;
       }
 
-      // Fetch all user profiles
+      // Fetch all user profiles including the new email column
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*')
@@ -78,6 +78,7 @@ const Admin = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Last Active</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -93,8 +94,14 @@ const Admin = () => {
                       </div>
                       <div>
                         <div className="font-bold">{user.username || 'No username'}</div>
-                        <div className="text-xs text-muted-foreground">{user.id}</div>
+                        <div className="text-xs text-muted-foreground truncate w-32">{user.id}</div>
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Mail className="h-3 w-3" />
+                      {user.email || 'No email synced'}
                     </div>
                   </TableCell>
                   <TableCell>
