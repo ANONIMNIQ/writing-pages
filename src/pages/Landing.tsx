@@ -43,8 +43,7 @@ const Landing = () => {
         <div className="space-y-6">
           <h1 className="text-8xl font-black tracking-tighter">Hello.</h1>
           <p className="text-gray-400 text-lg leading-relaxed max-w-xl">
-            <span className="text-white font-bold">Wr1te Pages</span> is a modern publishing platform designed to get out of your way. 
-            The first week is free, then it costs $7/mo. Membership comes with the <span className="underline decoration-white underline-offset-4">Forever Promise</span>.
+            <span className="text-white font-bold">Wr1te Pages</span> is a modern writing platform designed to focus on writing with distraction free text editor. It's free on it's beta state.
           </p>
         </div>
 
