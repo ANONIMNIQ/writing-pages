@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDrafts } from '@/hooks/use-drafts';
 import DraftListItem from '@/components/DraftListItem';
-import { Button } from '@/components/ui/button';
-import { Plus, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { UserMenu } from '@/components/UserMenu';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { MadeWithDyad } from '@/components/made-with-dyad';
 
 const Dashboard = () => {
   const { drafts, createDraft, deleteDraft } = useDrafts();
@@ -32,9 +31,6 @@ const Dashboard = () => {
   const handleCreate = async () => {
     const newId = await createDraft();
     if (newId) {
-      if (quickTitle) {
-        // Potentially update with title here if desired, but for now just navigate
-      }
       navigate(`/editor/${newId}`);
     }
   };
@@ -43,32 +39,34 @@ const Dashboard = () => {
   const publishedEntries = drafts.filter(d => d.status === 'published');
 
   return (
-    <div className="min-h-screen bg-background font-sans selection:bg-primary/10">
-      <div className="max-w-[1400px] mx-auto flex min-h-screen">
-        {/* Left Column - Ideas */}
-        <div className="flex-1 border-r border-border/40 p-12 md:p-16">
-          <header className="flex items-start justify-between mb-20">
-            <div className="flex items-center space-x-12">
-              <div className="w-12 h-12 rounded-full border-4 border-foreground shrink-0" />
-              <h1 className="text-7xl font-bold tracking-tighter">Ideas</h1>
+    <div className="min-h-screen bg-background font-sans selection:bg-primary/10 flex flex-col">
+      <div className="flex-1 flex w-full max-w-[1600px] mx-auto">
+        {/* Left Column: Ideas */}
+        <section className="flex-1 border-r border-border/40 p-12 md:p-16 lg:p-24 overflow-y-auto">
+          <header className="flex items-start justify-between mb-24">
+            <div className="flex items-center space-x-10">
+              {/* Svbtle Dot Logo */}
+              <div className="w-10 h-10 rounded-full bg-foreground shrink-0" />
+              <h1 className="text-6xl md:text-8xl font-black tracking-tighter">Ideas</h1>
             </div>
             <button 
               onClick={handleCreate}
-              className="px-6 py-2 rounded-full border border-foreground/10 text-xs font-medium tracking-wide hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              className="px-5 py-1.5 rounded-full border border-foreground/20 text-[10px] uppercase font-bold tracking-widest hover:bg-foreground hover:text-background transition-all duration-300"
             >
               new entry
             </button>
           </header>
 
-          <section className="max-w-xl ml-24">
-            <div className="mb-16 group">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-foreground/40 mb-3">New Idea</p>
-              <div className="flex items-start space-x-3">
-                <div className="w-[3px] h-8 bg-foreground/20 group-focus-within:bg-foreground transition-colors" />
+          <div className="max-w-xl ml-20">
+            {/* Quick Title Input */}
+            <div className="mb-20 group">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-foreground/30 mb-4">Draft an idea...</p>
+              <div className="flex items-start space-x-4">
+                <div className="w-[2px] h-9 bg-foreground/10 group-focus-within:bg-foreground transition-colors" />
                 <input 
                   type="text"
-                  placeholder="Start typing an idea title here..."
-                  className="bg-transparent border-none text-3xl font-light italic tracking-tight placeholder:text-foreground/20 focus:outline-none w-full"
+                  placeholder="What's on your mind?"
+                  className="bg-transparent border-none text-4xl font-light italic tracking-tight placeholder:text-foreground/10 focus:outline-none w-full py-0"
                   value={quickTitle}
                   onChange={(e) => setQuickTitle(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -81,26 +79,30 @@ const Dashboard = () => {
                 <DraftListItem key={draft.id} draft={draft} onDelete={deleteDraft} />
               ))}
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
-        {/* Right Column - Published */}
-        <div className="w-1/3 p-12 md:p-16 bg-black/[0.01] dark:bg-white/[0.01]">
-          <header className="flex items-center justify-between mb-20 h-12">
+        {/* Right Column: Published */}
+        <section className="w-[35%] min-w-[350px] p-12 md:p-16 lg:p-24 bg-black/[0.01] dark:bg-white/[0.01] overflow-y-auto">
+          <header className="flex items-center justify-between mb-24 h-10">
             <h2 className="text-4xl font-light tracking-tight text-foreground/20">Published</h2>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <ThemeToggle />
               <UserMenu isAdmin={isAdmin} />
             </div>
           </header>
 
-          <section className="space-y-1">
+          <div className="space-y-1">
             {publishedEntries.map(draft => (
               <DraftListItem key={draft.id} draft={draft} isPublished onDelete={deleteDraft} />
             ))}
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
+      
+      <footer className="py-4 border-t border-border/10 opacity-30 hover:opacity-100 transition-opacity">
+        <MadeWithDyad />
+      </footer>
     </div>
   );
 };

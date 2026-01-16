@@ -23,36 +23,32 @@ interface DraftListItemProps {
 }
 
 const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = false, onDelete }) => {
-  // Generate a random tally for visual flair matching the reference image
-  const tallyCount = Math.floor(Math.random() * 4) + 1;
-  const tallies = Array(tallyCount).fill('|').join('');
-
-  // Random placeholder for the circle badge on published items
-  const badgeValue = Math.floor(Math.random() * 900) + 100;
+  // Tally marks for visual flair
+  const tallies = "||";
 
   return (
-    <div className="group flex items-center justify-between py-5 border-b border-border/10 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] px-4 -mx-4 transition-colors">
+    <div className="group flex items-center justify-between py-5 border-b border-foreground/[0.03] hover:bg-foreground/[0.02] px-4 -mx-4 transition-all duration-200 rounded-sm">
       <div className="flex-1 flex items-center space-x-6">
         {isPublished && (
-          <div className="w-10 h-10 rounded-full border border-foreground/10 flex items-center justify-center text-[10px] font-medium text-foreground/40 shrink-0">
-            {badgeValue > 1000 ? `${(badgeValue/1000).toFixed(1)}k` : badgeValue}
+          <div className="w-9 h-9 rounded-full border border-foreground/10 flex items-center justify-center text-[10px] font-mono font-medium text-foreground/30 shrink-0">
+            {Math.floor(Math.random() * 500) + 100}
           </div>
         )}
         <Link 
           to={`/editor/${draft.id}`} 
-          className="flex-1"
+          className="flex-1 block"
         >
           <span className={cn(
-            "text-xl tracking-tight transition-colors",
-            isPublished ? "text-foreground/40 font-normal" : "text-foreground/80 font-medium"
+            "text-2xl tracking-tight transition-colors",
+            isPublished ? "text-foreground/30 font-light" : "text-foreground/80 font-medium"
           )}>
-            {draft.title || 'Untitled Entry'}
+            {draft.title || 'Untitled'}
           </span>
         </Link>
       </div>
       
       <div className="flex items-center space-x-6">
-        <span className="text-[10px] font-light tracking-[0.2em] text-foreground/20 font-sans">
+        <span className="text-[10px] font-light tracking-[0.3em] text-foreground/10 font-sans pointer-events-none">
           {tallies}
         </span>
         
@@ -61,23 +57,23 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-6 w-6 text-foreground/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-8 w-8 text-foreground/5 hover:text-destructive hover:bg-destructive/5 opacity-0 group-hover:opacity-100 transition-all"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent>
+          <AlertDialogContent className="font-sans">
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+              <AlertDialogTitle>Delete forever?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action is permanent and cannot be undone.
+                This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => onDelete?.(draft.id)}
-                className="bg-destructive text-white"
+                className="bg-destructive text-white rounded-full"
               >
                 Delete
               </AlertDialogAction>
