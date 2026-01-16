@@ -34,7 +34,7 @@ const Dashboard = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
-    toast.success("Logged out");
+    toast.success("Successfully logged out");
   };
 
   const draftEntries = drafts.filter(d => d.status === 'draft');
@@ -51,80 +51,83 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="p-6 flex justify-between items-center border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center space-x-4">
-          <div className="w-4 h-4 rounded-full border-2 border-foreground"></div>
-          <h1 className="text-4xl font-black tracking-tighter">Ideas</h1>
+    <div className="min-h-screen flex flex-col bg-background text-foreground font-serif">
+      <header className="p-8 flex justify-between items-center border-b-4 border-primary bg-background sticky top-0 z-50 shadow-md">
+        <div className="flex items-center gap-6">
+          <div className="w-8 h-8 bg-primary rounded-sm rotate-45"></div>
+          <h1 className="text-5xl font-black tracking-tighter uppercase italic">Wr1te</h1>
         </div>
-        <div className="flex items-center space-x-3">
+        
+        <div className="flex items-center gap-4">
           {isAdmin && (
-            <Button variant="outline" asChild className="rounded-full gap-2 border-primary/20 hover:bg-primary/5">
+            <Button variant="outline" asChild className="rounded-full border-2 font-bold px-6">
               <Link to="/admin">
-                <Shield className="h-4 w-4" />
+                <Shield className="mr-2 h-4 w-4" />
                 Admin Panel
               </Link>
             </Button>
           )}
+          
           <Button 
-            className="rounded-full gap-2 font-bold px-6"
+            className="rounded-full bg-primary text-primary-foreground font-black px-8 py-6 text-lg shadow-lg hover:scale-105 transition-transform"
             onClick={handleCreateAndNavigate}
           >
-            <Plus className="h-4 w-4" />
-            new entry
+            <Plus className="mr-2 h-6 w-6" />
+            NEW ENTRY
           </Button>
-          <div className="w-[1px] h-6 bg-border mx-2" />
+
+          <div className="h-10 w-[2px] bg-border mx-2" />
+
           <Button 
             variant="ghost" 
-            size="icon" 
-            className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+            className="rounded-full text-red-600 hover:text-white hover:bg-red-600 font-bold px-6 border-2 border-red-600/20"
             onClick={handleLogout}
-            title="Log out"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="mr-2 h-5 w-5" />
+            LOG OUT
           </Button>
         </div>
       </header>
 
-      <div className="flex flex-1">
-        <div className="w-1/2 p-12 border-r border-border/50 overflow-y-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Drafts</h2>
-            <span className="text-xs font-mono opacity-40">{draftEntries.length} items</span>
+      <main className="max-w-7xl mx-auto w-full p-12 space-y-24">
+        <section>
+          <div className="flex items-end justify-between mb-12 border-b-2 border-border pb-4">
+            <h2 className="text-6xl font-black uppercase tracking-tighter">Drafts</h2>
+            <p className="text-xl text-muted-foreground font-mono">{draftEntries.length} items</p>
           </div>
           
           {draftEntries.length > 0 ? (
-            <div className="space-y-1">
+            <div className="grid gap-4">
               {draftEntries.map(draft => (
                 <DraftListItem key={draft.id} draft={draft} onDelete={handleDelete} />
               ))}
             </div>
           ) : (
-            <div className="h-40 flex items-center justify-center border-2 border-dashed border-border/50 rounded-2xl">
-              <p className="text-muted-foreground text-sm font-serif italic">No drafts yet.</p>
+            <div className="py-20 text-center border-4 border-dashed border-border rounded-3xl">
+              <p className="text-3xl text-muted-foreground italic">You haven't started any drafts yet.</p>
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="w-1/2 p-12 overflow-y-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-4xl font-black tracking-tighter">Published</h2>
-            <span className="text-xs font-mono opacity-40">{publishedEntries.length} items</span>
+        <section>
+          <div className="flex items-end justify-between mb-12 border-b-2 border-border pb-4">
+            <h2 className="text-6xl font-black uppercase tracking-tighter text-primary">Published</h2>
+            <p className="text-xl text-muted-foreground font-mono">{publishedEntries.length} items</p>
           </div>
           
           {publishedEntries.length > 0 ? (
-            <div className="space-y-1">
+            <div className="grid gap-4">
               {publishedEntries.map(draft => (
                 <DraftListItem key={draft.id} draft={draft} isPublished={true} onDelete={handleDelete} />
               ))}
             </div>
           ) : (
-            <div className="h-40 flex items-center justify-center border-2 border-dashed border-border/50 rounded-2xl">
-              <p className="text-muted-foreground text-sm font-serif italic">No published entries yet.</p>
+            <div className="py-20 text-center border-4 border-dashed border-border rounded-3xl">
+              <p className="text-3xl text-muted-foreground italic">Nothing published yet.</p>
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
       <MadeWithDyad />
     </div>
   );

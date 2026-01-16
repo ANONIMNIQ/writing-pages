@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Draft } from '@/hooks/use-drafts';
 import { cn } from '@/lib/utils';
-import { Trash2, Edit3 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   AlertDialog, 
@@ -23,67 +23,58 @@ interface DraftListItemProps {
 }
 
 const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = false, onDelete }) => {
-  const wordCountPlaceholder = (
-    <div className="flex space-x-0.5 h-4 items-end opacity-50">
-      <div className="w-0.5 h-2 bg-foreground/50"></div>
-      <div className="w-0.5 h-3 bg-foreground/50"></div>
-      <div className="w-0.5 h-4 bg-foreground/50"></div>
-      <div className="w-0.5 h-2 bg-foreground/50"></div>
-    </div>
-  );
-
   const countDisplay = isPublished ? (
-    <div className="w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-xs font-medium text-foreground/70">
-      {Math.floor(Math.random() * 2000) + 1}
+    <div className="w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center text-sm font-bold">
+      {Math.floor(Math.random() * 1000)}
     </div>
   ) : null;
 
   return (
-    <div className="group flex items-center justify-between py-4 border-b border-border/10 hover:bg-accent/5 px-4 rounded-xl transition-all mb-1">
-      <div className="flex-1 flex items-center space-x-4">
+    <div className="flex items-center justify-between p-6 border-2 border-border/50 rounded-2xl mb-4 bg-card hover:border-primary/50 transition-all shadow-sm">
+      <div className="flex items-center gap-6 flex-1">
         {countDisplay}
         <Link 
           to={`/editor/${draft.id}`} 
-          className="flex items-center space-x-3 hover:text-primary transition-colors"
+          className="flex-1 group"
         >
-          <span className={cn(
-            "text-2xl font-light font-serif",
-            isPublished ? "text-foreground/80" : "text-foreground"
-          )}>
-            {draft.title || 'Untitled'}
-          </span>
-          <Edit3 className="h-4 w-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+          <h3 className="text-3xl font-serif font-bold group-hover:text-primary transition-colors">
+            {draft.title || 'Untitled Entry'}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Last updated: {new Date(draft.updated_at).toLocaleDateString()}
+          </p>
         </Link>
       </div>
       
-      <div className="flex items-center space-x-6">
-        {wordCountPlaceholder}
-        
+      <div className="flex items-center gap-4">
+        <Button variant="outline" asChild className="rounded-full">
+          <Link to={`/editor/${draft.id}`}>Edit</Link>
+        </Button>
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-10 w-10 text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Delete entry"
+              variant="destructive" 
+              className="rounded-full bg-red-600 hover:bg-red-700 text-white font-bold px-6"
             >
-              <Trash2 className="h-5 w-5" />
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Entry
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete your writing.
+              <AlertDialogTitle className="text-2xl font-bold">Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription className="text-lg">
+                This will permanently delete "{draft.title || 'Untitled Entry'}". This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="mt-6">
+              <AlertDialogCancel className="rounded-full">Keep it</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => onDelete?.(draft.id)}
-                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                className="bg-red-600 hover:bg-red-700 text-white rounded-full font-bold px-8"
               >
-                Delete Permanently
+                Yes, Delete Permanently
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
