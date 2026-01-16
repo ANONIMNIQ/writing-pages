@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Draft } from '@/hooks/use-drafts';
 import { cn } from '@/lib/utils';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   AlertDialog, 
@@ -39,24 +39,24 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
   ) : null;
 
   return (
-    <div className="group flex items-center justify-between py-3 border-b border-border/10 hover:border-border/40 transition-all px-2 rounded-lg hover:bg-accent/5">
-      <Link 
-        to={`/editor/${draft.id}`} 
-        className={cn(
-          "flex-1 flex items-center space-x-4 transition-colors",
-          isPublished ? "hover:text-primary" : "hover:text-primary"
-        )}
-      >
+    <div className="group flex items-center justify-between py-4 border-b border-border/10 hover:bg-accent/5 px-4 rounded-xl transition-all mb-1">
+      <div className="flex-1 flex items-center space-x-4">
         {countDisplay}
-        <span className={cn(
-          "text-xl font-light font-serif",
-          isPublished ? "text-foreground/80" : "text-foreground"
-        )}>
-          {draft.title || 'Untitled'}
-        </span>
-      </Link>
+        <Link 
+          to={`/editor/${draft.id}`} 
+          className="flex items-center space-x-3 hover:text-primary transition-colors"
+        >
+          <span className={cn(
+            "text-2xl font-light font-serif",
+            isPublished ? "text-foreground/80" : "text-foreground"
+          )}>
+            {draft.title || 'Untitled'}
+          </span>
+          <Edit3 className="h-4 w-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+        </Link>
+      </div>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-6">
         {wordCountPlaceholder}
         
         <AlertDialog>
@@ -64,10 +64,10 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-9 w-9 opacity-40 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className="h-10 w-10 text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
               title="Delete entry"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
