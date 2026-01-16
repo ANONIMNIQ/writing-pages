@@ -14,7 +14,6 @@ import TurndownService from 'turndown';
 import { supabase } from '@/integrations/supabase/client';
 
 const turndownService = new TurndownService();
-// Configure turndown to be more permissive with empty paragraphs
 turndownService.addRule('emptyParagraph', {
   filter: 'p',
   replacement: function (content) {
@@ -40,7 +39,6 @@ const Editor = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLTextAreaElement>(null);
   const isContentInitialized = useRef(false);
 
   useEffect(() => {
@@ -58,7 +56,7 @@ const Editor = () => {
     checkRole();
   }, []);
 
-  // Fetch draft data and initialize content
+  // Fetch draft data
   useEffect(() => {
     const fetchDraft = async () => {
       if (id) {
@@ -66,15 +64,6 @@ const Editor = () => {
         if (draft) {
           setDraftData(draft);
           setTitle(draft.title || '');
-          
-          // Use marked to parse markdown to HTML
-          const htmlContent = marked.parse(draft.content || '') as string;
-          
-          // Initialize contentEditable div only once after fetching data
-          if (editorRef.current && !isContentInitialized.current) {
-            editorRef.current.innerHTML = htmlContent;
-            isContentInitialized.current = true;
-          }
         } else {
           navigate('/');
           toast.error("Draft not found.");
@@ -83,6 +72,15 @@ const Editor = () => {
     };
     fetchDraft();
   }, [id, getDraft, navigate]);
+
+  // Initialize editor content once ref is available
+  useEffect(() => {
+    if (draftData && editorRef.current && !isContentInitialized.current) {
+      const htmlContent = marked.parse(draftData.content || '') as string;
+      editorRef.current.innerHTML = htmlContent;
+      isContentInitialized.current = true;
+    }
+  }, [draftData]);
 
   const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
@@ -115,7 +113,6 @@ const Editor = () => {
     }
   }, [isTypewriterMode]);
 
-  // Robust save function that pulls directly from the editor DOM
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
 
@@ -133,19 +130,19 @@ const Editor = () => {
     }
   }, [id, title, updateDraft]);
 
-  // Autosave effect triggered by isSaved being false
+  // Autosave effect
   useEffect(() => {
     if (isSaved) return;
 
     const handler = setTimeout(() => {
       saveContent();
-    }, 1500);
+    }, 1000);
 
     return () => clearTimeout(handler);
   }, [isSaved, saveContent]);
 
   const handleInput = () => {
-    if (isSaved) setIsSaved(false);
+    setIsSaved(false);
     updateCaretInfo();
   };
 
@@ -176,21 +173,7 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
-  const typewriterMask = `linear-gradient(
-    to bottom,
-    rgba(0,0,0,0.25) 0%,
-    rgba(0,0,0,0.25) calc(${FOCUS_OFFSET_VH}vh - 1px),
-    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh),
-    rgba(0,0,0,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(0,0,0,0.25) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 1px),
-    rgba(0,0,0,0.25) 100%
-  )`;
-
   if (!id || !draftData) return null;
-
-  const currentMarkdownForExport = editorRef.current 
-    ? turndownService.turndown(editorRef.current.innerHTML) 
-    : '';
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
@@ -223,7 +206,7 @@ const Editor = () => {
           </Button>
           <ThemeToggle />
           <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
-          <ExportOptions title={title} content={currentMarkdownForExport} />
+          <ExportOptions title={title} content={editorRef.current ? turndownService.turndown(editorRef.current.innerHTML) : ''} />
           <UserMenu isAdmin={isAdmin} />
         </div>
       </header>
@@ -258,7 +241,6 @@ const Editor = () => {
         >
           {!isTypewriterMode && (
             <textarea
-              ref={titleRef}
               value={title}
               onChange={handleTitleChange}
               className="w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
