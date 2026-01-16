@@ -14,6 +14,14 @@ import TurndownService from 'turndown';
 import { supabase } from '@/integrations/supabase/client';
 
 const turndownService = new TurndownService();
+// Configure turndown to be more permissive with empty paragraphs
+turndownService.addRule('emptyParagraph', {
+  filter: 'p',
+  replacement: function (content) {
+    return content ? '\n\n' + content + '\n\n' : '\n\n';
+  }
+});
+
 const LINE_HEIGHT = 32;
 const FOCUS_OFFSET_VH = 40; 
 
@@ -23,8 +31,7 @@ const Editor = () => {
   const { getDraft, updateDraft } = useDrafts();
   
   const [draftData, setDraftData] = useState<any>(null);
-  const [title, setTitle] = useState('Title');
-  const [contentHtml, setContentHtml] = useState('');
+  const [title, setTitle] = useState('');
   const [isSaved, setIsSaved] = useState(true);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
   const [plusButtonTop, setPlusButtonTop] = useState<number | null>(null);
@@ -58,13 +65,14 @@ const Editor = () => {
         const draft = await getDraft(id);
         if (draft) {
           setDraftData(draft);
-          setTitle(draft.title || 'Title');
-          const html = marked.parse(draft.content || '') as string;
-          setContentHtml(html);
+          setTitle(draft.title || '');
+          
+          // Use marked to parse markdown to HTML
+          const htmlContent = marked.parse(draft.content || '') as string;
           
           // Initialize contentEditable div only once after fetching data
           if (editorRef.current && !isContentInitialized.current) {
-            editorRef.current.innerHTML = html;
+            editorRef.current.innerHTML = htmlContent;
             isContentInitialized.current = true;
           }
         } else {
@@ -91,7 +99,6 @@ const Editor = () => {
         setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
       }
       if (isTypewriterMode) {
-        // Calculate offset to keep caret near the focus line
         const focusLineY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
         const scrollOffset = focusLineY - rect.top;
         setTypewriterOffset(scrollOffset);
@@ -108,34 +115,45 @@ const Editor = () => {
     }
   }, [isTypewriterMode]);
 
-  // Autosave effect
-  useEffect(() => {
-    if (!id) return;
-    const handler = setTimeout(() => {
-      if (!isSaved && draftData) {
-        const markdown = turndownService.turndown(contentHtml);
-        updateDraft(id, { title, content: markdown });
-        setIsSaved(true);
-      }
-    }, 1000);
-    return () => clearTimeout(handler);
-  }, [title, contentHtml, isSaved, id, updateDraft, draftData]);
+  // Robust save function that pulls directly from the editor DOM
+  const saveContent = useCallback(async () => {
+    if (!id || !isContentInitialized.current) return;
 
-  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    const newHtml = e.currentTarget.innerHTML;
-    setContentHtml(newHtml);
-    setIsSaved(false);
+    const currentHtml = editorRef.current?.innerHTML || '';
+    const markdown = turndownService.turndown(currentHtml);
+    
+    try {
+      await updateDraft(id, { 
+        title: title || 'Untitled', 
+        content: markdown 
+      });
+      setIsSaved(true);
+    } catch (error) {
+      console.error("Failed to auto-save:", error);
+    }
+  }, [id, title, updateDraft]);
+
+  // Autosave effect triggered by isSaved being false
+  useEffect(() => {
+    if (isSaved) return;
+
+    const handler = setTimeout(() => {
+      saveContent();
+    }, 1500);
+
+    return () => clearTimeout(handler);
+  }, [isSaved, saveContent]);
+
+  const handleInput = () => {
+    if (isSaved) setIsSaved(false);
     updateCaretInfo();
   };
 
   const applyFormat = (type: string) => {
     document.execCommand(type, false);
-    // Ensure state is updated after execCommand
-    if (editorRef.current) {
-      setContentHtml(editorRef.current.innerHTML);
-    }
     setIsSaved(false);
     setToolbarPos(null);
+    editorRef.current?.focus();
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -144,12 +162,19 @@ const Editor = () => {
   };
 
   const handlePublish = useCallback(async () => {
-    if (!id) return;
-    const markdown = turndownService.turndown(contentHtml);
-    await updateDraft(id, { title, content: markdown, status: 'published' });
+    if (!id || !editorRef.current) return;
+    const currentHtml = editorRef.current.innerHTML;
+    const markdown = turndownService.turndown(currentHtml);
+    
+    await updateDraft(id, { 
+      title: title || 'Untitled', 
+      content: markdown, 
+      status: 'published' 
+    });
+    
     toast.success("Entry published!");
     navigate('/');
-  }, [id, updateDraft, navigate, title, contentHtml]);
+  }, [id, updateDraft, navigate, title]);
 
   const typewriterMask = `linear-gradient(
     to bottom,
@@ -163,6 +188,10 @@ const Editor = () => {
 
   if (!id || !draftData) return null;
 
+  const currentMarkdownForExport = editorRef.current 
+    ? turndownService.turndown(editorRef.current.innerHTML) 
+    : '';
+
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
       {!isTypewriterMode && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
@@ -175,7 +204,9 @@ const Editor = () => {
           <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
             <ChevronLeft className="mr-1 h-5 w-5" /> Wr1te Pages
           </Link>
-          <span className="text-sm text-muted-foreground">{isSaved ? 'Saved' : 'Saving...'}</span>
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+            {isSaved ? 'Saved' : 'Saving...'}
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <Button 
@@ -192,7 +223,7 @@ const Editor = () => {
           </Button>
           <ThemeToggle />
           <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
-          <ExportOptions title={title} content={turndownService.turndown(contentHtml)} />
+          <ExportOptions title={title} content={currentMarkdownForExport} />
           <UserMenu isAdmin={isAdmin} />
         </div>
       </header>
