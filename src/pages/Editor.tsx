@@ -84,11 +84,11 @@ const Editor = () => {
 
   const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+    if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    const editorRect = editorRef.current?.getBoundingClientRect();
+    const editorRect = editorRef.current.getBoundingClientRect();
 
     if (editorRect) {
       const relativeTop = rect.top - editorRect.top;
@@ -97,7 +97,10 @@ const Editor = () => {
         setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
       }
       if (isTypewriterMode) {
+        // Calculate the desired vertical position for the caret (40vh from viewport top)
         const focusLineY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
+        
+        // Calculate the required vertical shift (transform) to move the caret to focusLineY
         const scrollOffset = focusLineY - rect.top;
         setTypewriterOffset(scrollOffset);
       }
@@ -173,7 +176,6 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
-  // Corrected mask definition using white for visibility
   const typewriterMask = `linear-gradient(
     to bottom,
     rgba(255,255,255,0.25) 0%,
@@ -209,6 +211,7 @@ const Editor = () => {
             className="rounded-full"
             onClick={() => {
               setIsTypewriterMode(true);
+              // Ensure caret info is updated after state change and DOM layout
               setTimeout(updateCaretInfo, 50);
             }}
             title="Typewriter Mode"
@@ -246,7 +249,8 @@ const Editor = () => {
         <div 
           className={cn(
             "w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out",
-            isTypewriterMode ? "pt-[40vh]" : "py-0" 
+            // Removed pt-[40vh] here to rely purely on typewriterOffset for centering
+            isTypewriterMode ? "py-0" : "py-0" 
           )}
           style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
         >
