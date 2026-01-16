@@ -2,14 +2,16 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Bell, User, Plus, Keyboard, ChevronLeft } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserMenu } from '@/components/UserMenu';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
+import { supabase } from '@/integrations/supabase/client';
 
 const turndownService = new TurndownService();
 const LINE_HEIGHT = 32;
@@ -28,10 +30,26 @@ const Editor = () => {
   const [plusButtonTop, setPlusButtonTop] = useState<number | null>(null);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
   const [typewriterOffset, setTypewriterOffset] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const hasInitializedRef = useRef(false);
+
+  useEffect(() => {
+    const checkRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (data?.role === 'admin') setIsAdmin(true);
+      }
+    };
+    checkRole();
+  }, []);
 
   // Fetch draft data
   useEffect(() => {
@@ -43,7 +61,6 @@ const Editor = () => {
           setTitle(draft.title || 'Title');
           const html = marked.parse(draft.content || '') as string;
           setContentHtml(html);
-          // Manually set initial content to avoid cursor jumps
           if (editorRef.current && !hasInitializedRef.current) {
             editorRef.current.innerHTML = html;
             hasInitializedRef.current = true;
@@ -66,15 +83,11 @@ const Editor = () => {
     const editorRect = editorRef.current?.getBoundingClientRect();
 
     if (editorRect) {
-      // Calculate position relative to the editor container
       const relativeTop = rect.top - editorRect.top;
       const caretHeight = rect.height || LINE_HEIGHT;
-      
-      // Only show plus button if it's a valid position
       if (rect.top > 0) {
         setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
       }
-
       if (isTypewriterMode) {
         setTypewriterOffset(-relativeTop);
       }
@@ -90,7 +103,6 @@ const Editor = () => {
     }
   }, [isTypewriterMode]);
 
-  // Auto-save logic
   useEffect(() => {
     if (!id) return;
     const handler = setTimeout(() => {
@@ -104,7 +116,6 @@ const Editor = () => {
   }, [title, contentHtml, isSaved, id, updateDraft]);
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    // Update state for saving but DON'T re-render the innerHTML via React
     const newHtml = e.currentTarget.innerHTML;
     setContentHtml(newHtml);
     setIsSaved(false);
@@ -175,8 +186,7 @@ const Editor = () => {
           <ThemeToggle />
           <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
           <ExportOptions title={title} content={turndownService.turndown(contentHtml)} />
-          <Button variant="ghost" size="icon" className="rounded-full"><Bell className="h-5 w-5 text-muted-foreground" /></Button>
-          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center overflow-hidden"><User className="h-4 w-4 text-muted-foreground" /></div>
+          <UserMenu isAdmin={isAdmin} />
         </div>
       </header>
 

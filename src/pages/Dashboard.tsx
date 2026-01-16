@@ -3,38 +3,30 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useDrafts } from '@/hooks/use-drafts';
 import DraftListItem from '@/components/DraftListItem';
 import { Button } from '@/components/ui/button';
-import { Menu, Shield } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { UserMenu } from '@/components/UserMenu';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
-  const { drafts, createDraft } = useDrafts();
+  const { drafts, createDraft, deleteDraft } = useDrafts();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkRole = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-          
-          if (error) {
-            console.error("Error fetching profile:", error);
-            return;
-          }
-          
-          if (data?.role === 'admin') {
-            setIsAdmin(true);
-          }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.role === 'admin') {
+          setIsAdmin(true);
         }
-      } catch (err) {
-        console.error("Failed to check admin status:", err);
       }
     };
     checkRole();
@@ -46,7 +38,12 @@ const Dashboard = () => {
   const handleCreateAndNavigate = async () => {
     const newId = await createDraft();
     if (newId) navigate(`/editor/${newId}`);
-  }
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteDraft(id);
+    toast.success("Entry deleted");
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -56,15 +53,6 @@ const Dashboard = () => {
           <h1 className="text-4xl font-extrabold tracking-tight">Ideas</h1>
         </div>
         <div className="flex items-center space-x-4">
-          {isAdmin && (
-            <Button 
-              variant="outline" 
-              className="rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground gap-2"
-              onClick={() => navigate('/admin')}
-            >
-              <Shield className="h-4 w-4" /> Admin Panel
-            </Button>
-          )}
           <Button 
             variant="outline" 
             className="rounded-full border-foreground/50 text-sm font-normal hover:bg-accent"
@@ -72,9 +60,7 @@ const Dashboard = () => {
           >
             new entry
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full border border-foreground/50">
-            <Menu className="h-5 w-5" />
-          </Button>
+          <UserMenu isAdmin={isAdmin} />
         </div>
       </header>
 
@@ -82,32 +68,28 @@ const Dashboard = () => {
         <div className="w-1/2 p-12 border-r border-border/50 overflow-y-auto">
           <h2 className="text-xs font-semibold uppercase text-muted-foreground mb-4">Drafts</h2>
           
-          {draftEntries.length > 0 && (
-            <div className="space-y-2">
+          {draftEntries.length > 0 ? (
+            <div className="space-y-1">
               {draftEntries.map(draft => (
-                <DraftListItem key={draft.id} draft={draft} />
+                <DraftListItem key={draft.id} draft={draft} onDelete={handleDelete} />
               ))}
             </div>
-          )}
-          
-          {draftEntries.length === 0 && (
-            <p className="text-muted-foreground">No drafts yet. Click "new entry" to start writing.</p>
+          ) : (
+            <p className="text-muted-foreground text-sm font-serif italic">No drafts yet.</p>
           )}
         </div>
 
         <div className="w-1/2 p-12 overflow-y-auto">
           <h2 className="text-4xl font-extrabold tracking-tight mb-8">Published</h2>
           
-          {publishedEntries.length > 0 && (
-            <div className="space-y-2">
+          {publishedEntries.length > 0 ? (
+            <div className="space-y-1">
               {publishedEntries.map(draft => (
-                <DraftListItem key={draft.id} draft={draft} isPublished={true} />
+                <DraftListItem key={draft.id} draft={draft} isPublished={true} onDelete={handleDelete} />
               ))}
             </div>
-          )}
-          
-          {publishedEntries.length === 0 && (
-            <p className="text-muted-foreground">No published entries yet.</p>
+          ) : (
+            <p className="text-muted-foreground text-sm font-serif italic">No published entries yet.</p>
           )}
         </div>
       </div>

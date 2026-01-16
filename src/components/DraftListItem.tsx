@@ -1,15 +1,28 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Draft } from '@/types/draft';
+import { Draft } from '@/hooks/use-drafts';
 import { cn } from '@/lib/utils';
+import { Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
 
 interface DraftListItemProps {
   draft: Draft;
   isPublished?: boolean;
+  onDelete?: (id: string) => void;
 }
 
-const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = false }) => {
-  // Simple placeholder for word count/read time visualization (the vertical bars in Svbtle)
+const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = false, onDelete }) => {
   const wordCountPlaceholder = (
     <div className="flex space-x-0.5 h-4 items-end opacity-50">
       <div className="w-0.5 h-2 bg-foreground/50"></div>
@@ -26,24 +39,56 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
   ) : null;
 
   return (
-    <Link 
-      to={`/editor/${draft.id}`} 
-      className={cn(
-        "flex justify-between items-center py-2 transition-colors",
-        isPublished ? "hover:text-primary" : "hover:text-primary"
-      )}
-    >
-      <div className="flex items-center space-x-4">
+    <div className="group flex items-center justify-between py-2 border-b border-transparent hover:border-border/30 transition-all">
+      <Link 
+        to={`/editor/${draft.id}`} 
+        className={cn(
+          "flex-1 flex items-center space-x-4 transition-colors",
+          isPublished ? "hover:text-primary" : "hover:text-primary"
+        )}
+      >
         {countDisplay}
         <span className={cn(
           "text-xl font-light font-serif",
           isPublished ? "text-foreground/80" : "text-foreground"
         )}>
-          {draft.title}
+          {draft.title || 'Untitled'}
         </span>
+      </Link>
+      
+      <div className="flex items-center space-x-4">
+        {wordCountPlaceholder}
+        
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete your writing.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => onDelete?.(draft.id)}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-      {wordCountPlaceholder}
-    </Link>
+    </div>
   );
 };
 
