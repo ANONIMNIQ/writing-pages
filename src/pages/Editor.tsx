@@ -31,17 +31,23 @@ const Editor = () => {
 
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const hasInitializedRef = useRef(false);
 
   // Fetch draft data
   useEffect(() => {
     const fetchDraft = async () => {
-      if (id) {
+      if (id && !initialDraft) {
         const draft = await getDraft(id);
         if (draft) {
           setInitialDraft(draft);
           setTitle(draft.title || 'Title');
           const html = marked.parse(draft.content || '') as string;
           setContentHtml(html);
+          // Manually set initial content to avoid cursor jumps
+          if (editorRef.current && !hasInitializedRef.current) {
+            editorRef.current.innerHTML = html;
+            hasInitializedRef.current = true;
+          }
         } else {
           navigate('/');
           toast.error("Draft not found.");
@@ -49,7 +55,7 @@ const Editor = () => {
       }
     };
     fetchDraft();
-  }, [id, getDraft, navigate]);
+  }, [id, getDraft, navigate, initialDraft]);
 
   const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
@@ -60,9 +66,14 @@ const Editor = () => {
     const editorRect = editorRef.current?.getBoundingClientRect();
 
     if (editorRect) {
+      // Calculate position relative to the editor container
       const relativeTop = rect.top - editorRect.top;
       const caretHeight = rect.height || LINE_HEIGHT;
-      setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
+      
+      // Only show plus button if it's a valid position
+      if (rect.top > 0) {
+        setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
+      }
 
       if (isTypewriterMode) {
         setTypewriterOffset(-relativeTop);
@@ -93,13 +104,18 @@ const Editor = () => {
   }, [title, contentHtml, isSaved, id, updateDraft]);
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    setContentHtml(e.currentTarget.innerHTML);
+    // Update state for saving but DON'T re-render the innerHTML via React
+    const newHtml = e.currentTarget.innerHTML;
+    setContentHtml(newHtml);
     setIsSaved(false);
     updateCaretInfo();
   };
 
   const applyFormat = (type: string) => {
     document.execCommand(type, false);
+    if (editorRef.current) {
+      setContentHtml(editorRef.current.innerHTML);
+    }
     setIsSaved(false);
     setToolbarPos(null);
   };
@@ -111,10 +127,11 @@ const Editor = () => {
 
   const handlePublish = useCallback(async () => {
     if (!id) return;
-    await updateDraft(id, { status: 'published' });
+    const markdown = turndownService.turndown(contentHtml);
+    await updateDraft(id, { title, content: markdown, status: 'published' });
     toast.success("Entry published!");
     navigate('/');
-  }, [id, updateDraft, navigate]);
+  }, [id, updateDraft, navigate, title, contentHtml]);
 
   const typewriterMask = `linear-gradient(
     to bottom,
@@ -205,7 +222,7 @@ const Editor = () => {
           <div className="relative">
             {!isTypewriterMode && plusButtonTop !== null && (
               <div 
-                className="absolute -left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100"
+                className="absolute -left-12 md:-left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100 z-10"
                 style={{ top: `${plusButtonTop}px`, height: `${LINE_HEIGHT}px`, width: '40px' }}
               >
                 <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground h-8 w-8">
@@ -222,13 +239,13 @@ const Editor = () => {
               onKeyUp={updateCaretInfo}
               onMouseUp={updateCaretInfo}
               className={cn(
-                "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-lg dark:prose-invert max-w-none",
+                "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-lg dark:prose-invert max-w-none relative z-0",
                 isTypewriterMode 
                   ? "font-mono caret-[#00BFFF] leading-[32px] cursor-text" 
                   : "font-serif caret-primary leading-[32px] cursor-text"
               )}
               style={{ lineHeight: `${LINE_HEIGHT}px` }}
-              dangerouslySetInnerHTML={{ __html: contentHtml }}
+              spellCheck="false"
             />
           </div>
         </div>
