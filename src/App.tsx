@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Editor from "./pages/Editor";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,13 +42,12 @@ const App = () => {
           <Sonner position="top-center" />
           <BrowserRouter>
             <Routes>
-              {/* Public Routes */}
               <Route path="/signup" element={session ? <Navigate to="/" /> : <Landing />} />
               <Route path="/login" element={session ? <Navigate to="/" /> : <Login />} />
               
-              {/* Protected Routes */}
               <Route path="/" element={session ? <Dashboard /> : <Navigate to="/signup" />} />
               <Route path="/editor/:id" element={session ? <Editor /> : <Navigate to="/login" />} />
+              <Route path="/admin" element={session ? <Admin /> : <Navigate to="/login" />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
