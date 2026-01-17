@@ -239,7 +239,7 @@ const Editor = () => {
   const handleChapterClick = (chapterId: string) => {
     const element = document.getElementById(chapterId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       // In typewriter mode, we need to update the offset after scrolling
       if (isTypewriterMode) {
         setTimeout(updateCaretInfo, 500);
