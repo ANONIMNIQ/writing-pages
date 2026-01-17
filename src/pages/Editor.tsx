@@ -84,8 +84,8 @@ const Editor = () => {
   }, [draftData]);
 
   const updateCaretInfo = useCallback(() => {
-    // We wrap this in requestAnimationFrame to ensure the browser has finished
-    // calculating the new layout (especially after an Enter key press)
+    // We use a small delay via requestAnimationFrame to ensure the DOM has updated
+    // after an Enter key or input event.
     requestAnimationFrame(() => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || !editorRef.current || !wrapperRef.current) return;
@@ -94,25 +94,36 @@ const Editor = () => {
       let rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
 
-      // Fallback for empty lines where getBoundingClientRect can return 0 width/height
-      if (rect.height === 0) {
-        const parent = range.startContainer.parentElement;
-        if (parent) rect = parent.getBoundingClientRect();
+      // ROBUST POSITION FALLBACK: 
+      // If the rect is invalid (0 height or top, common on empty lines), 
+      // we find the parent block element to get the vertical position.
+      if (rect.height === 0 || rect.top === 0) {
+        const container = range.startContainer;
+        const element = container.nodeType === 1 ? (container as HTMLElement) : container.parentElement;
+        if (element) {
+          rect = element.getBoundingClientRect();
+        }
       }
+
+      // If we still don't have a valid rect, we can't calculate.
+      if (rect.top === 0 && rect.height === 0) return;
 
       const relativeTop = rect.top - editorRect.top;
       const caretHeight = rect.height || LINE_HEIGHT;
       
-      if (rect.top > 0 || rect.height > 0) {
-        setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
-      }
+      setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
 
       if (isTypewriterMode) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
-        // The core math: focus point minus the relative position of the caret from the editor top
-        // This ensures the current line always hits exactly the 40vh mark
-        const caretOffsetFromEditorTop = rect.top - editorRect.top;
-        setTypewriterOffset(focusPointY - caretOffsetFromEditorTop);
+        
+        // Calculate caret position relative to the editor container top.
+        // We subtract the current transform offset from the viewport-relative editorRect.top
+        // to get the true "origin" top of the content.
+        const currentEditorTopInViewport = editorRect.top - typewriterOffset;
+        const caretYRelativeToEditor = rect.top - editorRect.top;
+        
+        // New offset is focus point minus the relative cursor position
+        setTypewriterOffset(focusPointY - caretYRelativeToEditor);
       }
 
       if (!selection.isCollapsed) {
@@ -124,7 +135,7 @@ const Editor = () => {
         setToolbarPos(null);
       }
     });
-  }, [isTypewriterMode]);
+  }, [isTypewriterMode, typewriterOffset]);
 
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
@@ -157,6 +168,13 @@ const Editor = () => {
   const handleInput = () => {
     setIsSaved(false);
     updateCaretInfo();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      // Force an immediate update after the Enter key finishes its native behavior
+      setTimeout(updateCaretInfo, 0);
+    }
   };
 
   const applyFormat = (type: string) => {
@@ -290,6 +308,7 @@ const Editor = () => {
               ref={editorRef}
               contentEditable
               onInput={handleInput}
+              onKeyDown={handleKeyDown}
               onSelect={updateCaretInfo}
               onKeyUp={updateCaretInfo}
               onMouseUp={updateCaretInfo}
