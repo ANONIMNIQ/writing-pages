@@ -93,16 +93,19 @@ const Editor = () => {
     if (editorRect) {
       const relativeTop = rect.top - editorRect.top;
       const caretHeight = rect.height || LINE_HEIGHT;
+      
       if (rect.top > 0) {
         setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
       }
+
       if (isTypewriterMode) {
-        // Calculate the desired vertical position for the caret (40vh from viewport top)
+        // Calculate where we want the caret to be (40vh from viewport top)
         const focusLineY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
         
-        // Calculate the required vertical shift (transform) to move the caret to focusLineY
-        const scrollOffset = focusLineY - rect.top;
-        setTypewriterOffset(scrollOffset);
+        // Use a functional update to incrementally adjust the transform
+        // This prevents the "jumping" behavior by calculating the necessary shift
+        // to move the current viewport position of the caret to the focus line.
+        setTypewriterOffset(prev => prev + (focusLineY - rect.top));
       }
     }
 
@@ -176,14 +179,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
+  // Refined mask for typewriter mode (faded above/below current line)
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(255,255,255,0.25) 0%,
-    rgba(255,255,255,0.25) calc(${FOCUS_OFFSET_VH}vh - 1px),
+    rgba(255,255,255,0.15) 0%,
+    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh - 40px),
     rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh),
     rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(255,255,255,0.25) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 1px),
-    rgba(255,255,255,0.25) 100%
+    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 40px),
+    rgba(255,255,255,0.15) 100%
   )`;
 
   if (!id || !draftData) return null;
@@ -211,7 +215,6 @@ const Editor = () => {
             className="rounded-full"
             onClick={() => {
               setIsTypewriterMode(true);
-              // Ensure caret info is updated after state change and DOM layout
               setTimeout(updateCaretInfo, 50);
             }}
             title="Typewriter Mode"
@@ -230,7 +233,10 @@ const Editor = () => {
           variant="secondary" 
           size="icon" 
           className="fixed top-6 right-6 z-50 rounded-full shadow-lg opacity-90 hover:opacity-100 transition-all scale-110"
-          onClick={() => setIsTypewriterMode(false)}
+          onClick={() => {
+            setIsTypewriterMode(false);
+            setTypewriterOffset(0); // Reset offset when leaving
+          }}
         >
           <Plus className="h-6 w-6 rotate-45" />
         </Button>
@@ -247,11 +253,7 @@ const Editor = () => {
         } : {}}
       >
         <div 
-          className={cn(
-            "w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out",
-            // Removed pt-[40vh] here to rely purely on typewriterOffset for centering
-            isTypewriterMode ? "py-0" : "py-0" 
-          )}
+          className="w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out"
           style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
         >
           {!isTypewriterMode && (
