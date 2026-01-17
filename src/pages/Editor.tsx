@@ -209,33 +209,23 @@ const Editor = () => {
         const range = selection.getRangeAt(0);
         let node = range.startContainer;
         
-        // Find the closest block-level element (p, div, etc.)
         let currentBlock = node.nodeType === 3 ? node.parentElement : (node as HTMLElement);
-        
-        // Find the blockquote if we're in one
         const blockquote = currentBlock?.closest('blockquote');
         
         if (blockquote) {
-          // A line is "empty" if it has no text content (ignoring BR tags)
           const textContent = currentBlock?.innerText?.trim() || "";
           
           if (textContent === "") {
             e.preventDefault();
-            
-            // 1. Create a new paragraph outside/after the blockquote
             const p = document.createElement('p');
             p.innerHTML = '<br>';
             blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
-            
-            // 2. Remove the empty block from the quote
             currentBlock?.remove();
             
-            // 3. If the blockquote is now completely empty, remove it too
             if (blockquote.innerText.trim() === "") {
               blockquote.remove();
             }
             
-            // 4. Move the cursor into the new paragraph
             const newRange = document.createRange();
             newRange.setStart(p, 0);
             newRange.collapse(true);
@@ -255,8 +245,25 @@ const Editor = () => {
 
   const applyFormat = (type: string) => {
     if (type.startsWith('formatBlock:')) {
-      const tag = type.split(':')[1];
-      document.execCommand('formatBlock', false, tag);
+      const tag = type.split(':')[1].toUpperCase();
+      const selection = window.getSelection();
+      
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let node = range.startContainer;
+        if (node.nodeType === 3) node = node.parentElement!;
+        
+        const closestBlock = (node as HTMLElement).closest('h1, h2, blockquote, p');
+        const currentTag = closestBlock?.tagName;
+
+        if (currentTag === tag) {
+          // If already the requested format, toggle back to paragraph
+          document.execCommand('formatBlock', false, 'p');
+        } else {
+          // Otherwise apply the format
+          document.execCommand('formatBlock', false, tag);
+        }
+      }
     } else {
       document.execCommand(type, false);
     }
