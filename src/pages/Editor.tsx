@@ -257,8 +257,12 @@ const Editor = () => {
         const currentTag = closestBlock?.tagName;
 
         if (currentTag === tag) {
-          // If already the requested format, toggle back to paragraph
-          document.execCommand('formatBlock', false, 'p');
+          // If already the requested format, toggle back
+          if (tag === 'BLOCKQUOTE') {
+            document.execCommand('outdent', false);
+          } else {
+            document.execCommand('formatBlock', false, 'p');
+          }
         } else {
           // Otherwise apply the format
           document.execCommand('formatBlock', false, tag);
