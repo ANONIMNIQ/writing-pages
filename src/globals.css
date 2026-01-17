@@ -145,4 +145,7 @@
   font-size: 1.125rem !important; /* text-lg */
   margin-top: 0 !important;
   margin-bottom: 0 !important;
+  /* Explicitly remove blockquote specific styling */
+  padding-left: 0 !important;
+  border-left: none !important;
 }
