@@ -110,6 +110,8 @@ const Editor = () => {
 
       if (isTypewriterMode) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
+        // We calculate the caret position relative to the editor container's own coordinate system
+        // (subtracting the current transform offset from the viewport-relative position)
         const caretYRelativeToEditor = rect.top - editorRect.top;
         setTypewriterOffset(focusPointY - caretYRelativeToEditor);
       }
@@ -141,11 +143,12 @@ const Editor = () => {
 
   const handleEnterTypewriter = () => {
     setIsTypewriterMode(true);
-    // Move cursor to end immediately
+    // Move cursor to end after a brief delay to allow the monospace styles to apply
     setTimeout(() => {
       moveCursorToEnd();
-      updateCaretInfo();
-    }, 50);
+      // Second tick to ensure the centering math uses the updated caret position
+      setTimeout(updateCaretInfo, 50);
+    }, 100);
   };
 
   const saveContent = useCallback(async () => {
