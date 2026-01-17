@@ -90,11 +90,10 @@ const Editor = () => {
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     const editorRect = editorRef.current.getBoundingClientRect();
-    const wrapperRect = wrapperRef.current.getBoundingClientRect();
 
+    // Standard UI helpers
     const relativeTop = rect.top - editorRect.top;
     const caretHeight = rect.height || LINE_HEIGHT;
-    
     if (rect.top > 0) {
       setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
     }
@@ -102,12 +101,14 @@ const Editor = () => {
     if (isTypewriterMode) {
       const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
       
-      // Deterministic calculation:
-      // Distance of caret from the top of the wrapper (ignoring current transform)
-      const caretYInWrapper = rect.top - (wrapperRect.top - typewriterOffset);
+      // Calculate the distance from the top of the editor content to the current caret.
+      // Both rect.top and editorRect.top are in viewport space, so their difference
+      // is the absolute position of the cursor within the text document.
+      const caretOffsetFromEditorTop = rect.top - editorRect.top;
       
-      // The new offset is simply the focus point minus that absolute position
-      setTypewriterOffset(focusPointY - caretYInWrapper);
+      // We set the transform so that the editor's top starts at exactly 
+      // (focusPointY - current_caret_offset), effectively pinning the caret to focusPointY.
+      setTypewriterOffset(focusPointY - caretOffsetFromEditorTop);
     }
 
     if (!selection.isCollapsed) {
@@ -118,7 +119,7 @@ const Editor = () => {
     } else {
       setToolbarPos(null);
     }
-  }, [isTypewriterMode, typewriterOffset]);
+  }, [isTypewriterMode]);
 
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
@@ -180,15 +181,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
-  // Visual mask for typewriter mode
+  // Sharp visual mask for typewriter focus
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(255,255,255,0.1) 0%,
-    rgba(255,255,255,0.1) calc(${FOCUS_OFFSET_VH}vh - 60px),
+    rgba(255,255,255,0.15) 0%,
+    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh - 60px),
     rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh - 10px),
     rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 10px),
-    rgba(255,255,255,0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 60px),
-    rgba(255,255,255,0.1) 100%
+    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 60px),
+    rgba(255,255,255,0.15) 100%
   )`;
 
   if (!id || !draftData) return null;
