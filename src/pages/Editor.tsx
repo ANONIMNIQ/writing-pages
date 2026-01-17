@@ -92,12 +92,14 @@ const Editor = () => {
       let rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
 
-      // Robust fallback for empty lines
+      // Robust fallback for empty lines: check parent or last child
       if (rect.height === 0 || rect.top === 0) {
         const container = range.startContainer;
         const element = container.nodeType === 1 ? (container as HTMLElement) : container.parentElement;
-        if (element) {
+        if (element && element !== editorRef.current) {
           rect = element.getBoundingClientRect();
+        } else if (editorRef.current.lastElementChild) {
+          rect = editorRef.current.lastElementChild.getBoundingClientRect();
         }
       }
 
@@ -110,8 +112,6 @@ const Editor = () => {
 
       if (isTypewriterMode) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
-        // We calculate the caret position relative to the editor container's own coordinate system
-        // (subtracting the current transform offset from the viewport-relative position)
         const caretYRelativeToEditor = rect.top - editorRect.top;
         setTypewriterOffset(focusPointY - caretYRelativeToEditor);
       }
@@ -127,28 +127,35 @@ const Editor = () => {
     });
   }, [isTypewriterMode]);
 
-  const moveCursorToEnd = () => {
-    if (editorRef.current) {
-      editorRef.current.focus();
-      const selection = window.getSelection();
-      if (selection) {
-        const range = document.createRange();
-        range.selectNodeContents(editorRef.current);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
+  const moveCursorToEnd = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    
+    el.focus();
+    
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
-  };
+  }, []);
 
   const handleEnterTypewriter = () => {
     setIsTypewriterMode(true);
-    // Move cursor to end after a brief delay to allow the monospace styles to apply
+    // Sequential execution to handle font switch, layout shift, and selection
     setTimeout(() => {
       moveCursorToEnd();
-      // Second tick to ensure the centering math uses the updated caret position
-      setTimeout(updateCaretInfo, 50);
-    }, 100);
+      // Wait for layout to settle with new font
+      setTimeout(() => {
+        updateCaretInfo();
+        // Final sanity check for offset
+        setTimeout(updateCaretInfo, 100);
+      }, 50);
+    }, 50);
   };
 
   const saveContent = useCallback(async () => {
