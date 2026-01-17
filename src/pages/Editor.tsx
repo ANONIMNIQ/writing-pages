@@ -352,7 +352,7 @@ const Editor = () => {
                 onKeyUp={updateCaretInfo}
                 onMouseUp={updateCaretInfo}
                 className={cn(
-                  "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-xl prose-stone dark:prose-invert max-w-none relative z-0 pb-[50vh] prose-h1:text-4xl prose-h1:font-black prose-h1:tracking-tight prose-h1:mb-12 prose-h2:text-2xl prose-h2:font-bold prose-h2:tracking-tight",
+                  "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-xl prose-stone dark:prose-invert max-w-none relative z-0 pb-[50vh]",
                   isTypewriterMode 
                     ? "font-mono caret-[#00BFFF] leading-[32px] cursor-text" 
                     : "font-serif caret-primary leading-[32px] cursor-text"

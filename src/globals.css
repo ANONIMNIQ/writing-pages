@@ -109,3 +109,18 @@
     scrollbar-width: none;
   }
 }
+
+/* Custom Editor Overrides */
+.editor-content h1 {
+  @apply text-4xl font-black tracking-tight mb-8 mt-12 block !important;
+  font-family: inherit;
+}
+
+.editor-content h2 {
+  @apply text-2xl font-bold tracking-tight mb-6 mt-10 block !important;
+  font-family: inherit;
+}
+
+.editor-content blockquote {
+  @apply border-l-4 border-primary/20 pl-6 italic text-foreground/60 my-8 block !important;
+}
