@@ -204,6 +204,29 @@ const Editor = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      // Logic to break out of blockquote on empty line
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let container = range.startContainer;
+        if (container.nodeType === 3) container = container.parentElement!;
+        
+        let blockquote = container;
+        while (blockquote && (blockquote as HTMLElement).tagName !== 'BLOCKQUOTE' && blockquote !== editorRef.current) {
+          blockquote = blockquote.parentElement!;
+        }
+
+        if (blockquote && (blockquote as HTMLElement).tagName === 'BLOCKQUOTE') {
+          // If the line is empty (no text content), convert it back to a paragraph
+          const text = (blockquote as HTMLElement).innerText.trim();
+          if (text === '') {
+            e.preventDefault();
+            document.execCommand('formatBlock', false, 'p');
+            return;
+          }
+        }
+      }
+
       setTimeout(updateCaretInfo, 0);
       setTimeout(updateChapters, 100);
     }
@@ -240,7 +263,6 @@ const Editor = () => {
     const element = document.getElementById(chapterId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // In typewriter mode, we need to update the offset after scrolling
       if (isTypewriterMode) {
         setTimeout(updateCaretInfo, 500);
       }
