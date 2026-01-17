@@ -210,22 +210,32 @@ const Editor = () => {
         let node = range.startContainer;
         if (node.nodeType === 3) node = node.parentElement!;
         
-        let blockquote = node;
-        while (blockquote && (blockquote as HTMLElement).tagName !== 'BLOCKQUOTE' && blockquote !== editorRef.current) {
-          blockquote = blockquote.parentElement!;
-        }
-
-        if (blockquote && (blockquote as HTMLElement).tagName === 'BLOCKQUOTE') {
-          // Check if the current line is effectively empty (only whitespace or ZWSP)
-          const text = node.textContent?.replace(/\u200B/g, '').trim() || "";
+        const blockquote = (node as HTMLElement).closest('blockquote');
+        if (blockquote) {
+          // Check the actual text of the current block
+          const text = (node as HTMLElement).innerText?.replace(/\n/g, '').trim() || "";
+          
           if (text === "") {
             e.preventDefault();
-            // Force break out of blockquote using outdent or formatBlock
+            // Try to outdent first (standard behavior to exit blocks)
             document.execCommand('outdent', false);
-            // If still in quote, force to paragraph
-            const stillInQuote = (window.getSelection()?.anchorNode as HTMLElement)?.closest?.('blockquote');
-            if (stillInQuote) {
-              document.execCommand('formatBlock', false, 'p');
+            // Ensure the block is a paragraph
+            document.execCommand('formatBlock', false, 'p');
+            
+            // If still stuck inside the BQ for some reason, manually move the cursor out
+            const currentSelection = window.getSelection();
+            const currentAnchor = currentSelection?.anchorNode as HTMLElement;
+            if (currentAnchor?.closest?.('blockquote')) {
+              // Forced manual breakout
+              const p = document.createElement('p');
+              p.innerHTML = '<br>';
+              blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
+              
+              const newRange = document.createRange();
+              newRange.setStart(p, 0);
+              newRange.collapse(true);
+              currentSelection?.removeAllRanges();
+              currentSelection?.addRange(newRange);
             }
             return;
           }
