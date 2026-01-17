@@ -122,9 +122,13 @@
 }
 
 .editor-content blockquote {
-  @apply border-l-4 border-primary/20 pl-6 italic text-foreground/60 my-4 block !important;
+  @apply border-l-4 border-primary/20 pl-6 italic text-foreground/60 my-8 block !important;
 }
 
 .editor-content blockquote + blockquote {
   @apply mt-[-1rem] pt-0 !important;
+}
+
+.editor-content p {
+  @apply my-4 leading-[32px] !important;
 }

@@ -208,35 +208,41 @@ const Editor = () => {
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         let node = range.startContainer;
-        if (node.nodeType === 3) node = node.parentElement!;
         
-        const blockquote = (node as HTMLElement).closest('blockquote');
+        // Find the closest block-level element (p, div, etc.)
+        let currentBlock = node.nodeType === 3 ? node.parentElement : (node as HTMLElement);
+        
+        // Find the blockquote if we're in one
+        const blockquote = currentBlock?.closest('blockquote');
+        
         if (blockquote) {
-          // Check the actual text of the current block
-          const text = (node as HTMLElement).innerText?.replace(/\n/g, '').trim() || "";
+          // A line is "empty" if it has no text content (ignoring BR tags)
+          const textContent = currentBlock?.innerText?.trim() || "";
           
-          if (text === "") {
+          if (textContent === "") {
             e.preventDefault();
-            // Try to outdent first (standard behavior to exit blocks)
-            document.execCommand('outdent', false);
-            // Ensure the block is a paragraph
-            document.execCommand('formatBlock', false, 'p');
             
-            // If still stuck inside the BQ for some reason, manually move the cursor out
-            const currentSelection = window.getSelection();
-            const currentAnchor = currentSelection?.anchorNode as HTMLElement;
-            if (currentAnchor?.closest?.('blockquote')) {
-              // Forced manual breakout
-              const p = document.createElement('p');
-              p.innerHTML = '<br>';
-              blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
-              
-              const newRange = document.createRange();
-              newRange.setStart(p, 0);
-              newRange.collapse(true);
-              currentSelection?.removeAllRanges();
-              currentSelection?.addRange(newRange);
+            // 1. Create a new paragraph outside/after the blockquote
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
+            
+            // 2. Remove the empty block from the quote
+            currentBlock?.remove();
+            
+            // 3. If the blockquote is now completely empty, remove it too
+            if (blockquote.innerText.trim() === "") {
+              blockquote.remove();
             }
+            
+            // 4. Move the cursor into the new paragraph
+            const newRange = document.createRange();
+            newRange.setStart(p, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            setIsSaved(false);
             return;
           }
         }
