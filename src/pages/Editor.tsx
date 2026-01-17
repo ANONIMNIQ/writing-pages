@@ -216,12 +216,17 @@ const Editor = () => {
         }
 
         if (blockquote && (blockquote as HTMLElement).tagName === 'BLOCKQUOTE') {
-          // Check if the current focused element/line is effectively empty
-          const currentLineContent = node.textContent?.trim() || "";
-          if (currentLineContent === "") {
+          // Check if the current line is effectively empty (only whitespace or ZWSP)
+          const text = node.textContent?.replace(/\u200B/g, '').trim() || "";
+          if (text === "") {
             e.preventDefault();
-            // This toggles off the blockquote for the current block
-            document.execCommand('formatBlock', false, 'p');
+            // Force break out of blockquote using outdent or formatBlock
+            document.execCommand('outdent', false);
+            // If still in quote, force to paragraph
+            const stillInQuote = (window.getSelection()?.anchorNode as HTMLElement)?.closest?.('blockquote');
+            if (stillInQuote) {
+              document.execCommand('formatBlock', false, 'p');
+            }
             return;
           }
         }
