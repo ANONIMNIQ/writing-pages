@@ -132,3 +132,13 @@
 .editor-content p {
   @apply my-4 leading-[32px] !important;
 }
+
+/* Typewriter Normalization */
+.typewriter-active h1,
+.typewriter-active h2,
+.typewriter-active blockquote,
+.typewriter-active p {
+  @apply text-lg font-normal m-0 p-0 border-none block italic-none !important;
+  line-height: 32px !important;
+  font-style: normal !important;
+}

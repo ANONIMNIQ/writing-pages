@@ -257,7 +257,8 @@ const Editor = () => {
         const currentTag = closestBlock?.tagName;
 
         if (currentTag === tag) {
-          // If already the requested format, toggle back
+          // If already the requested format, toggle back to paragraph
+          // Specifically handle blockquote with outdent to ensure reliable removal
           if (tag === 'BLOCKQUOTE') {
             document.execCommand('outdent', false);
           } else {
@@ -406,10 +407,10 @@ const Editor = () => {
                 onKeyUp={updateCaretInfo}
                 onMouseUp={updateCaretInfo}
                 className={cn(
-                  "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-xl prose-stone dark:prose-invert max-w-none relative z-0 pb-[50vh]",
+                  "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent max-w-none relative z-0 pb-[50vh]",
                   isTypewriterMode 
-                    ? "font-mono caret-[#00BFFF] leading-[32px] cursor-text" 
-                    : "font-serif caret-primary leading-[32px] cursor-text"
+                    ? "font-mono typewriter-active caret-[#00BFFF] leading-[32px] cursor-text" 
+                    : "font-serif caret-primary leading-[32px] cursor-text prose prose-xl prose-stone dark:prose-invert"
                 )}
                 style={{ lineHeight: `${LINE_HEIGHT}px` }}
                 spellCheck="false"
