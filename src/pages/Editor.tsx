@@ -204,23 +204,23 @@ const Editor = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      // Logic to break out of blockquote on empty line
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        let container = range.startContainer;
-        if (container.nodeType === 3) container = container.parentElement!;
+        let node = range.startContainer;
+        if (node.nodeType === 3) node = node.parentElement!;
         
-        let blockquote = container;
+        let blockquote = node;
         while (blockquote && (blockquote as HTMLElement).tagName !== 'BLOCKQUOTE' && blockquote !== editorRef.current) {
           blockquote = blockquote.parentElement!;
         }
 
         if (blockquote && (blockquote as HTMLElement).tagName === 'BLOCKQUOTE') {
-          // If the line is empty (no text content), convert it back to a paragraph
-          const text = (blockquote as HTMLElement).innerText.trim();
-          if (text === '') {
+          // Check if the current focused element/line is effectively empty
+          const currentLineContent = node.textContent?.trim() || "";
+          if (currentLineContent === "") {
             e.preventDefault();
+            // This toggles off the blockquote for the current block
             document.execCommand('formatBlock', false, 'p');
             return;
           }
