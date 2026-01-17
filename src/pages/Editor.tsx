@@ -39,6 +39,7 @@ const Editor = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const isContentInitialized = useRef(false);
 
   useEffect(() => {
@@ -84,29 +85,29 @@ const Editor = () => {
 
   const updateCaretInfo = useCallback(() => {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
+    if (!selection || selection.rangeCount === 0 || !editorRef.current || !wrapperRef.current) return;
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     const editorRect = editorRef.current.getBoundingClientRect();
+    const wrapperRect = wrapperRef.current.getBoundingClientRect();
 
-    if (editorRect) {
-      const relativeTop = rect.top - editorRect.top;
-      const caretHeight = rect.height || LINE_HEIGHT;
+    const relativeTop = rect.top - editorRect.top;
+    const caretHeight = rect.height || LINE_HEIGHT;
+    
+    if (rect.top > 0) {
+      setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
+    }
+
+    if (isTypewriterMode) {
+      const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
       
-      if (rect.top > 0) {
-        setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
-      }
-
-      if (isTypewriterMode) {
-        // Calculate where we want the caret to be (40vh from viewport top)
-        const focusLineY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
-        
-        // Use a functional update to incrementally adjust the transform
-        // This prevents the "jumping" behavior by calculating the necessary shift
-        // to move the current viewport position of the caret to the focus line.
-        setTypewriterOffset(prev => prev + (focusLineY - rect.top));
-      }
+      // Deterministic calculation:
+      // Distance of caret from the top of the wrapper (ignoring current transform)
+      const caretYInWrapper = rect.top - (wrapperRect.top - typewriterOffset);
+      
+      // The new offset is simply the focus point minus that absolute position
+      setTypewriterOffset(focusPointY - caretYInWrapper);
     }
 
     if (!selection.isCollapsed) {
@@ -117,7 +118,7 @@ const Editor = () => {
     } else {
       setToolbarPos(null);
     }
-  }, [isTypewriterMode]);
+  }, [isTypewriterMode, typewriterOffset]);
 
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
@@ -179,15 +180,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
-  // Refined mask for typewriter mode (faded above/below current line)
+  // Visual mask for typewriter mode
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(255,255,255,0.15) 0%,
-    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh - 40px),
-    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh),
-    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px),
-    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 40px),
-    rgba(255,255,255,0.15) 100%
+    rgba(255,255,255,0.1) 0%,
+    rgba(255,255,255,0.1) calc(${FOCUS_OFFSET_VH}vh - 60px),
+    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh - 10px),
+    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 10px),
+    rgba(255,255,255,0.1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 60px),
+    rgba(255,255,255,0.1) 100%
   )`;
 
   if (!id || !draftData) return null;
@@ -235,7 +236,7 @@ const Editor = () => {
           className="fixed top-6 right-6 z-50 rounded-full shadow-lg opacity-90 hover:opacity-100 transition-all scale-110"
           onClick={() => {
             setIsTypewriterMode(false);
-            setTypewriterOffset(0); // Reset offset when leaving
+            setTypewriterOffset(0);
           }}
         >
           <Plus className="h-6 w-6 rotate-45" />
@@ -253,7 +254,8 @@ const Editor = () => {
         } : {}}
       >
         <div 
-          className="w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out"
+          ref={wrapperRef}
+          className="w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out will-change-transform"
           style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
         >
           {!isTypewriterMode && (
@@ -286,7 +288,7 @@ const Editor = () => {
               onKeyUp={updateCaretInfo}
               onMouseUp={updateCaretInfo}
               className={cn(
-                "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-lg dark:prose-invert max-w-none relative z-0",
+                "w-full min-h-[60vh] focus:outline-none bg-transparent prose prose-lg dark:prose-invert max-w-none relative z-0 pb-[50vh]",
                 isTypewriterMode 
                   ? "font-mono caret-[#00BFFF] leading-[32px] cursor-text" 
                   : "font-serif caret-primary leading-[32px] cursor-text"
