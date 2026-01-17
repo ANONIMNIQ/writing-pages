@@ -84,8 +84,6 @@ const Editor = () => {
   }, [draftData]);
 
   const updateCaretInfo = useCallback(() => {
-    // We use a small delay via requestAnimationFrame to ensure the DOM has updated
-    // after an Enter key or input event.
     requestAnimationFrame(() => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || !editorRef.current || !wrapperRef.current) return;
@@ -94,9 +92,7 @@ const Editor = () => {
       let rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
 
-      // ROBUST POSITION FALLBACK: 
-      // If the rect is invalid (0 height or top, common on empty lines), 
-      // we find the parent block element to get the vertical position.
+      // Robust fallback for empty lines
       if (rect.height === 0 || rect.top === 0) {
         const container = range.startContainer;
         const element = container.nodeType === 1 ? (container as HTMLElement) : container.parentElement;
@@ -105,7 +101,6 @@ const Editor = () => {
         }
       }
 
-      // If we still don't have a valid rect, we can't calculate.
       if (rect.top === 0 && rect.height === 0) return;
 
       const relativeTop = rect.top - editorRect.top;
@@ -115,14 +110,7 @@ const Editor = () => {
 
       if (isTypewriterMode) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
-        
-        // Calculate caret position relative to the editor container top.
-        // We subtract the current transform offset from the viewport-relative editorRect.top
-        // to get the true "origin" top of the content.
-        const currentEditorTopInViewport = editorRect.top - typewriterOffset;
         const caretYRelativeToEditor = rect.top - editorRect.top;
-        
-        // New offset is focus point minus the relative cursor position
         setTypewriterOffset(focusPointY - caretYRelativeToEditor);
       }
 
@@ -135,7 +123,30 @@ const Editor = () => {
         setToolbarPos(null);
       }
     });
-  }, [isTypewriterMode, typewriterOffset]);
+  }, [isTypewriterMode]);
+
+  const moveCursorToEnd = () => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  };
+
+  const handleEnterTypewriter = () => {
+    setIsTypewriterMode(true);
+    // Move cursor to end immediately
+    setTimeout(() => {
+      moveCursorToEnd();
+      updateCaretInfo();
+    }, 50);
+  };
 
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
@@ -154,14 +165,11 @@ const Editor = () => {
     }
   }, [id, title, updateDraft]);
 
-  // Autosave effect
   useEffect(() => {
     if (isSaved) return;
-
     const handler = setTimeout(() => {
       saveContent();
     }, 1000);
-
     return () => clearTimeout(handler);
   }, [isSaved, saveContent]);
 
@@ -172,7 +180,6 @@ const Editor = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      // Force an immediate update after the Enter key finishes its native behavior
       setTimeout(updateCaretInfo, 0);
     }
   };
@@ -204,15 +211,15 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title]);
 
-  // Sharp visual mask for typewriter focus
+  // Sharp Transitions: focused area is 100%, everything else is 25%
   const typewriterMask = `linear-gradient(
     to bottom,
-    rgba(255,255,255,0.15) 0%,
-    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh - 60px),
-    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh - 10px),
-    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 10px),
-    rgba(255,255,255,0.15) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 60px),
-    rgba(255,255,255,0.15) 100%
+    rgba(255,255,255,0.25) 0%,
+    rgba(255,255,255,0.25) calc(${FOCUS_OFFSET_VH}vh - 5px),
+    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh - 2px),
+    rgba(255,255,255,1) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 2px),
+    rgba(255,255,255,0.25) calc(${FOCUS_OFFSET_VH}vh + ${LINE_HEIGHT}px + 5px),
+    rgba(255,255,255,0.25) 100%
   )`;
 
   if (!id || !draftData) return null;
@@ -238,10 +245,7 @@ const Editor = () => {
             variant="ghost" 
             size="icon" 
             className="rounded-full"
-            onClick={() => {
-              setIsTypewriterMode(true);
-              setTimeout(updateCaretInfo, 50);
-            }}
+            onClick={handleEnterTypewriter}
             title="Typewriter Mode"
           >
             <Keyboard className="h-5 w-5" />
