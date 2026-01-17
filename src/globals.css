@@ -133,12 +133,16 @@
   @apply my-4 leading-[32px] !important;
 }
 
-/* Typewriter Normalization */
+/* Typewriter Normalization - Ultra Aggressive */
 .typewriter-active h1,
 .typewriter-active h2,
 .typewriter-active blockquote,
-.typewriter-active p {
-  @apply text-lg font-normal m-0 p-0 border-none block italic-none !important;
+.typewriter-active p,
+.typewriter-active div {
+  @apply text-lg font-normal m-0 p-0 border-none block not-italic !important;
   line-height: 32px !important;
   font-style: normal !important;
+  font-size: 1.125rem !important; /* text-lg */
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }

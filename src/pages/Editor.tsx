@@ -253,12 +253,12 @@ const Editor = () => {
         let node = range.startContainer;
         if (node.nodeType === 3) node = node.parentElement!;
         
-        const closestBlock = (node as HTMLElement).closest('h1, h2, blockquote, p');
-        const currentTag = closestBlock?.tagName;
+        // Find the high-level block container (prioritize H1/H2/BLOCKQUOTE over P)
+        const highLevelBlock = (node as HTMLElement).closest('h1, h2, blockquote');
+        const currentTag = highLevelBlock?.tagName;
 
         if (currentTag === tag) {
           // If already the requested format, toggle back to paragraph
-          // Specifically handle blockquote with outdent to ensure reliable removal
           if (tag === 'BLOCKQUOTE') {
             document.execCommand('outdent', false);
           } else {
