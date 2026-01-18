@@ -112,7 +112,6 @@ const Editor = () => {
 
   useEffect(() => {
     if (draftData && editorRef.current && !isContentInitialized.current) {
-      // Use raw marked parsing without extra sanitization to preserve our custom spans
       const htmlContent = marked.parse(draftData.content || '') as string;
       editorRef.current.innerHTML = htmlContent;
       isContentInitialized.current = true;
@@ -238,6 +237,7 @@ const Editor = () => {
   };
 
   // Add click listener to the editor to handle highlight clicks
+  // Dependency on draftData ensures this runs once the editor is in the DOM
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -258,7 +258,7 @@ const Editor = () => {
 
     editor.addEventListener('click', handleClick);
     return () => editor.removeEventListener('click', handleClick);
-  }, []);
+  }, [draftData]);
 
   const applyFormat = (type: string) => {
     if (type === 'addNote') {
