@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Keyboard, ChevronLeft, Plus, Menu } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import EditorSidebar from '@/components/EditorSidebar';
@@ -294,6 +294,17 @@ const Editor = () => {
     navigate('/');
   }, [id, updateDraft, navigate, title, getDraft]);
 
+  const handleRevertToDraft = useCallback(async () => {
+    if (!id) return;
+    await updateDraft(id, { status: 'draft' });
+    
+    // Force a data refresh to update UI immediately
+    const updated = await getDraft(id);
+    if (updated) setDraftData(updated);
+    
+    toast.success("Entry reverted to draft.");
+  }, [id, updateDraft, getDraft]);
+
   const handleChapterClick = (chapterId: string) => {
     const element = document.getElementById(chapterId);
     if (element) {
@@ -350,8 +361,17 @@ const Editor = () => {
             <Keyboard className="h-5 w-5" />
           </Button>
           <ThemeToggle />
-          {draftData.status === 'draft' && (
+          {draftData.status === 'draft' ? (
             <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
+          ) : (
+            <Button 
+              onClick={handleRevertToDraft} 
+              variant="outline" 
+              className="rounded-full px-4 py-1 h-auto text-sm font-medium ml-2 border-primary/20 hover:bg-primary/5 gap-2"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span>Revert to Draft</span>
+            </Button>
           )}
           <ExportOptions title={title} content={editorRef.current ? turndownService.turndown(editorRef.current.innerHTML) : ''} />
           <UserMenu isAdmin={isAdmin} />
