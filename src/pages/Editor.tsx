@@ -112,6 +112,7 @@ const Editor = () => {
 
   useEffect(() => {
     if (draftData && editorRef.current && !isContentInitialized.current) {
+      // Use raw marked parsing without extra sanitization to preserve our custom spans
       const htmlContent = marked.parse(draftData.content || '') as string;
       editorRef.current.innerHTML = htmlContent;
       isContentInitialized.current = true;
@@ -267,7 +268,7 @@ const Editor = () => {
         const noteId = uuidv4();
         
         const span = document.createElement('span');
-        span.className = "note-highlight bg-green-200/50 dark:bg-green-900/40 rounded px-1 transition-colors cursor-help";
+        span.className = "note-highlight";
         span.setAttribute('data-note-id', noteId);
         
         const range = selection.getRangeAt(0);
