@@ -56,6 +56,7 @@ const Editor = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   const editorRef = useRef<HTMLDivElement>(null);
@@ -200,7 +201,6 @@ const Editor = () => {
     const parentElement = node.nodeType === 3 ? node.parentElement : (node as HTMLElement);
     const highlightSpan = parentElement?.closest('.note-highlight');
 
-    // If typing at the end of a highlight span, break out of it on Space or Enter
     if (highlightSpan && selection.isCollapsed) {
       const isAtEnd = range.startOffset === (node.textContent?.length || 0);
       
@@ -211,7 +211,6 @@ const Editor = () => {
         highlightSpan.parentNode?.insertBefore(afterNode, highlightSpan.nextSibling);
 
         if (e.key === 'Enter') {
-          // If Enter, we actually want a new paragraph after the span's block
           const p = document.createElement('p');
           p.innerHTML = '<br>';
           const block = highlightSpan.closest('p, h1, h2, blockquote') || highlightSpan.parentNode;
@@ -223,7 +222,6 @@ const Editor = () => {
           selection.removeAllRanges();
           selection.addRange(newRange);
         } else {
-          // If Space, just move caret after the span
           const newRange = document.createRange();
           newRange.setStart(afterNode, 1);
           newRange.collapse(true);
@@ -237,6 +235,29 @@ const Editor = () => {
       }
     }
   };
+
+  // Add click listener to the editor to handle highlight clicks
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const highlight = target.closest('.note-highlight');
+      if (highlight) {
+        const noteId = highlight.getAttribute('data-note-id');
+        if (noteId) {
+          setActiveNoteId(noteId);
+        }
+      } else {
+        // Clear active note if clicking outside
+        setActiveNoteId(null);
+      }
+    };
+
+    editor.addEventListener('click', handleClick);
+    return () => editor.removeEventListener('click', handleClick);
+  }, []);
 
   const applyFormat = (type: string) => {
     if (type === 'addNote') {
@@ -260,13 +281,9 @@ const Editor = () => {
         };
         
         setNotes(prev => [newNote, ...prev]);
+        setActiveNoteId(noteId);
         setIsSaved(false);
         setToolbarPos(null);
-        
-        setTimeout(() => {
-           const card = document.getElementById(`note-card-${noteId}`);
-           card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
       }
       return;
     }
@@ -320,10 +337,12 @@ const Editor = () => {
     }
     
     setNotes(prev => prev.filter(n => n.id !== noteId));
+    if (activeNoteId === noteId) setActiveNoteId(null);
     setIsSaved(false);
   };
 
   const handleFocusNote = (noteId: string) => {
+    setActiveNoteId(noteId);
     if (editorRef.current) {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
       if (highlight) {
@@ -501,6 +520,7 @@ const Editor = () => {
         {!isTypewriterMode && (
           <NotesSidebar 
             notes={notes}
+            activeNoteId={activeNoteId}
             onUpdateNote={handleUpdateNote}
             onDeleteNote={handleDeleteNote}
             onFocusNote={handleFocusNote}

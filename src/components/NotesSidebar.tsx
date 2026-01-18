@@ -1,8 +1,9 @@
-import React from 'react';
-import { MessageSquare, Trash2, X } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { MessageSquare, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 export interface Note {
   id: string;
@@ -13,6 +14,7 @@ export interface Note {
 
 interface NotesSidebarProps {
   notes: Note[];
+  activeNoteId: string | null;
   onUpdateNote: (id: string, text: string) => void;
   onDeleteNote: (id: string) => void;
   onFocusNote: (id: string) => void;
@@ -21,11 +23,24 @@ interface NotesSidebarProps {
 
 const NotesSidebar: React.FC<NotesSidebarProps> = ({ 
   notes, 
+  activeNoteId,
   onUpdateNote, 
   onDeleteNote, 
   onFocusNote,
   isVisible 
 }) => {
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Scroll the sidebar to the active note when it changes
+  useEffect(() => {
+    if (activeNoteId) {
+      const element = document.getElementById(`note-card-${activeNoteId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeNoteId]);
+
   if (!isVisible) return null;
 
   return (
@@ -35,56 +50,89 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
           <MessageSquare size={16} />
           <span className="text-[10px] font-bold uppercase tracking-widest">Sidenotes</span>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground">{notes.length} notes</span>
+        <span className="text-[10px] font-mono text-muted-foreground">{notes.length} total</span>
       </div>
       
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
+        <div className="p-4 space-y-4">
           {notes.length > 0 ? (
-            notes.map((note) => (
-              <div 
-                key={note.id} 
-                id={`note-card-${note.id}`}
-                className="group space-y-3 p-4 rounded-xl border border-transparent hover:border-border/40 hover:bg-accent/30 transition-all duration-200"
-                onClick={() => onFocusNote(note.id)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-[10px] font-bold text-primary/40 uppercase tracking-tighter mb-1 line-clamp-1">
-                      Context: "{note.highlightedText}"
-                    </p>
+            notes.map((note) => {
+              const isActive = activeNoteId === note.id;
+              
+              return (
+                <div 
+                  key={note.id} 
+                  id={`note-card-${note.id}`}
+                  className={cn(
+                    "group transition-all duration-300 rounded-xl border cursor-pointer overflow-hidden",
+                    isActive 
+                      ? "bg-green-100/40 dark:bg-green-900/20 border-green-200/50 dark:border-green-800/30 shadow-sm" 
+                      : "bg-transparent border-transparent hover:border-border/40 hover:bg-accent/30"
+                  )}
+                  onClick={() => onFocusNote(note.id)}
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className={cn(
+                          "text-[10px] font-bold uppercase tracking-tighter mb-1 transition-colors",
+                          isActive ? "text-green-600 dark:text-green-400" : "text-primary/40"
+                        )}>
+                          "{note.highlightedText}"
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive/50 hover:text-destructive hover:bg-destructive/5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteNote(note.id);
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </Button>
+                        {isActive ? (
+                          <ChevronUp size={14} className="ml-1 text-green-600/50" />
+                        ) : (
+                          <ChevronDown size={14} className="ml-1 opacity-20" />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {isActive ? (
+                      <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <Textarea
+                          value={note.text}
+                          onChange={(e) => onUpdateNote(note.id, e.target.value)}
+                          placeholder="Add your thoughts..."
+                          className="min-h-[100px] bg-white/40 dark:bg-black/20 border-none focus-visible:ring-0 p-3 text-sm leading-relaxed resize-none rounded-lg"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="mt-2 flex justify-end">
+                          <span className="text-[9px] text-muted-foreground font-mono opacity-50">
+                            {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      note.text && (
+                        <p className="mt-1 text-xs text-muted-foreground line-clamp-1 italic px-0.5">
+                          {note.text}
+                        </p>
+                      )
+                    )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive hover:bg-destructive/5"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteNote(note.id);
-                    }}
-                  >
-                    <Trash2 size={12} />
-                  </Button>
                 </div>
-                
-                <Textarea
-                  value={note.text}
-                  onChange={(e) => onUpdateNote(note.id, e.target.value)}
-                  placeholder="Add your thoughts..."
-                  className="min-h-[80px] bg-transparent border-none focus-visible:ring-0 p-0 text-sm leading-relaxed resize-none shadow-none"
-                />
-                
-                <div className="pt-2 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                   <span className="text-[9px] text-muted-foreground font-mono">
-                     {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                   </span>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <div className="py-12 text-center space-y-2 opacity-30">
-              <MessageSquare className="mx-auto h-8 w-8" />
-              <p className="text-xs italic">Highlight text to add your first note.</p>
+            <div className="py-24 text-center space-y-3 opacity-20">
+              <MessageSquare className="mx-auto h-10 w-10" />
+              <p className="text-xs italic px-8">Highlight text in the editor to pin a note here.</p>
             </div>
           )}
         </div>
