@@ -7,7 +7,7 @@ import { Header } from '@/components/Header';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-const MAX_TITLE_LENGTH = 60;
+const MAX_TITLE_LENGTH = 30;
 
 const Dashboard = () => {
   const { drafts, createDraft, deleteDraft, updateDraft } = useDrafts();
