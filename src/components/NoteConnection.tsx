@@ -16,6 +16,7 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
       return;
     }
 
+    // Increased delay to wait for 'smooth' scroll to finish (approx 500-600ms)
     const timer = setTimeout(() => {
       const highlight = editorRef.current?.querySelector(`.note-highlight[data-note-id="${activeNoteId}"]`);
       const noteCard = document.getElementById(`note-card-${activeNoteId}`);
@@ -32,11 +33,11 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
         });
         setIsVisible(true);
 
-        // Hide after 2 seconds
-        const hideTimer = setTimeout(() => setIsVisible(false), 2000);
+        // Hide after 1.5 seconds (down from 2s)
+        const hideTimer = setTimeout(() => setIsVisible(false), 1500);
         return () => clearTimeout(hideTimer);
       }
-    }, 100); // Small delay to allow sidebar scrolling to finish
+    }, 600); 
 
     return () => clearTimeout(timer);
   }, [activeNoteId, editorRef]);
@@ -61,17 +62,16 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
         </marker>
       </defs>
       
-      {/* The Connection Line */}
       <path
         d={`M ${coords.x1} ${coords.y1} C ${coords.x1 + (coords.x2 - coords.x1) / 2} ${coords.y1}, ${coords.x1 + (coords.x2 - coords.x1) / 2} ${coords.y2}, ${coords.x2} ${coords.y2}`}
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
-        className="text-yellow-500/40 dark:text-green-500/40 animate-in fade-in duration-500"
+        className="text-yellow-500/60 dark:text-green-500/60 animate-in fade-in duration-300"
         strokeDasharray="1000"
         strokeDashoffset="1000"
         style={{
-          animation: 'drawPath 2s ease-out forwards'
+          animation: 'drawPath 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards'
         }}
         markerEnd="url(#arrowhead)"
       />
