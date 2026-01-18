@@ -4,7 +4,8 @@ import {
   Italic, 
   Heading1, 
   Heading2, 
-  Quote
+  Quote,
+  MessageSquare
 } from 'lucide-react';
 
 interface TextFormattingToolbarProps {
@@ -21,6 +22,7 @@ const TextFormattingToolbar: React.FC<TextFormattingToolbarProps> = ({ position,
     { icon: Heading1, label: 'New Chapter', action: 'formatBlock:H1' },
     { icon: Heading2, label: 'Heading', action: 'formatBlock:H2' },
     { icon: Quote, label: 'Quote', action: 'formatBlock:blockquote' },
+    { icon: MessageSquare, label: 'Add Note', action: 'addNote' },
   ];
 
   return (
@@ -47,7 +49,7 @@ const TextFormattingToolbar: React.FC<TextFormattingToolbarProps> = ({ position,
                 {btn.label}
               </span>
             </button>
-            {(i === 1 || i === 3) && <div className="w-[1px] h-4 bg-gray-700 mx-1" />}
+            {(i === 1 || i === 3 || i === 4) && <div className="w-[1px] h-4 bg-gray-700 mx-1" />}
           </React.Fragment>
         ))}
       </div>

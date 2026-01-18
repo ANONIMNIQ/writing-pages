@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useDrafts } from '@/hooks/use-drafts';
+import { useDrafts, Note } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
 import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import EditorSidebar from '@/components/EditorSidebar';
+import NotesSidebar from '@/components/NotesSidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
 import { toast } from 'sonner';
@@ -13,12 +14,21 @@ import { cn } from '@/lib/utils';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
 import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const turndownService = new TurndownService();
 turndownService.addRule('emptyParagraph', {
   filter: 'p',
   replacement: function (content) {
     return content ? '\n\n' + content + '\n\n' : '\n\n';
+  }
+});
+// Preserve highlight spans for notes
+turndownService.addRule('noteHighlight', {
+  filter: (node) => node.nodeName === 'SPAN' && node.classList.contains('note-highlight'),
+  replacement: (content, node) => {
+    const id = (node as HTMLElement).getAttribute('data-note-id');
+    return `<span class="note-highlight" data-note-id="${id}">${content}</span>`;
   }
 });
 
@@ -45,6 +55,7 @@ const Editor = () => {
   const [typewriterOffset, setTypewriterOffset] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   const editorRef = useRef<HTMLDivElement>(null);
@@ -89,6 +100,7 @@ const Editor = () => {
         if (draft) {
           setDraftData(draft);
           setTitle(draft.title || '');
+          setNotes(draft.notes || []);
         } else {
           navigate('/');
           toast.error("Draft not found.");
@@ -151,42 +163,21 @@ const Editor = () => {
     });
   }, [isTypewriterMode]);
 
-  const moveCursorToEnd = useCallback(() => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const selection = window.getSelection();
-    if (selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  }, []);
-
-  const handleEnterTypewriter = () => {
-    setIsTypewriterMode(true);
-    setTimeout(() => {
-      moveCursorToEnd();
-      setTimeout(() => {
-        updateCaretInfo();
-        setTimeout(updateCaretInfo, 100);
-      }, 50);
-    }, 50);
-  };
-
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
     const currentHtml = editorRef.current?.innerHTML || '';
     const markdown = turndownService.turndown(currentHtml);
     try {
-      await updateDraft(id, { title: title || 'Untitled', content: markdown });
+      await updateDraft(id, { 
+        title: title || 'Untitled', 
+        content: markdown,
+        notes: notes 
+      });
       setIsSaved(true);
     } catch (error) {
       console.error("Failed to auto-save:", error);
     }
-  }, [id, title, updateDraft]);
+  }, [id, title, updateDraft, notes]);
 
   useEffect(() => {
     if (isSaved) return;
@@ -202,48 +193,42 @@ const Editor = () => {
     updateChapters();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        let node = range.startContainer;
-        
-        let currentBlock = node.nodeType === 3 ? node.parentElement : (node as HTMLElement);
-        const blockquote = currentBlock?.closest('blockquote');
-        
-        if (blockquote) {
-          const textContent = currentBlock?.innerText?.trim() || "";
-          
-          if (textContent === "") {
-            e.preventDefault();
-            const p = document.createElement('p');
-            p.innerHTML = '<br>';
-            blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
-            currentBlock?.remove();
-            
-            if (blockquote.innerText.trim() === "") {
-              blockquote.remove();
-            }
-            
-            const newRange = document.createRange();
-            newRange.setStart(p, 0);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-            
-            setIsSaved(false);
-            return;
-          }
-        }
-      }
-
-      setTimeout(updateCaretInfo, 0);
-      setTimeout(updateChapters, 100);
-    }
-  };
-
   const applyFormat = (type: string) => {
+    if (type === 'addNote') {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        const highlightedText = selection.toString();
+        const noteId = uuidv4();
+        
+        // Wrap selection in highlight span
+        const span = document.createElement('span');
+        span.className = "note-highlight bg-green-200/50 dark:bg-green-900/40 rounded px-1 transition-colors cursor-help";
+        span.setAttribute('data-note-id', noteId);
+        
+        const range = selection.getRangeAt(0);
+        range.surroundContents(span);
+        
+        // Add note to state
+        const newNote: Note = {
+          id: noteId,
+          text: "",
+          highlightedText: highlightedText.substring(0, 50) + (highlightedText.length > 50 ? "..." : ""),
+          createdAt: Date.now()
+        };
+        
+        setNotes(prev => [newNote, ...prev]);
+        setIsSaved(false);
+        setToolbarPos(null);
+        
+        // Focus the new note after a brief delay
+        setTimeout(() => {
+           const card = document.getElementById(`note-card-${noteId}`);
+           card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+      return;
+    }
+
     if (type.startsWith('formatBlock:')) {
       const tag = type.split(':')[1].toUpperCase();
       const selection = window.getSelection();
@@ -275,35 +260,39 @@ const Editor = () => {
     updateChapters();
   };
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setTitle(e.target.value);
+  const handleUpdateNote = (noteId: string, text: string) => {
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text } : n));
     setIsSaved(false);
   };
 
-  const handlePublish = useCallback(async () => {
-    if (!id || !editorRef.current) return;
-    const currentHtml = editorRef.current.innerHTML;
-    const markdown = turndownService.turndown(currentHtml);
-    await updateDraft(id, { title: title || 'Untitled', content: markdown, status: 'published' });
+  const handleDeleteNote = (noteId: string) => {
+    // Remove highlight from DOM
+    if (editorRef.current) {
+      const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
+      if (highlight) {
+        const parent = highlight.parentNode;
+        while (highlight.firstChild) {
+          parent?.insertBefore(highlight.firstChild, highlight);
+        }
+        highlight.remove();
+      }
+    }
     
-    // Force a data refresh to update the header color immediately
-    const updated = await getDraft(id);
-    if (updated) setDraftData(updated);
-    
-    toast.success("Entry published!");
-    navigate('/');
-  }, [id, updateDraft, navigate, title, getDraft]);
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+    setIsSaved(false);
+  };
 
-  const handleRevertToDraft = useCallback(async () => {
-    if (!id) return;
-    await updateDraft(id, { status: 'draft' });
-    
-    // Force a data refresh to update UI immediately
-    const updated = await getDraft(id);
-    if (updated) setDraftData(updated);
-    
-    toast.success("Entry reverted to draft.");
-  }, [id, updateDraft, getDraft]);
+  const handleFocusNote = (noteId: string) => {
+    if (editorRef.current) {
+      const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
+      if (highlight) {
+        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Briefly flash the highlight
+        highlight.classList.add('ring-2', 'ring-green-400');
+        setTimeout(() => highlight.classList.remove('ring-2', 'ring-green-400'), 1500);
+      }
+    }
+  };
 
   const handleChapterClick = (chapterId: string) => {
     const element = document.getElementById(chapterId);
@@ -357,15 +346,34 @@ const Editor = () => {
           </span>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={handleEnterTypewriter} title="Typewriter Mode">
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
+            setIsTypewriterMode(true);
+            setTimeout(() => {
+              editorRef.current?.focus();
+              updateCaretInfo();
+            }, 50);
+          }} title="Typewriter Mode">
             <Keyboard className="h-5 w-5" />
           </Button>
           <ThemeToggle />
           {draftData.status === 'draft' ? (
-            <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
+            <Button onClick={async () => {
+              if (!id || !editorRef.current) return;
+              const markdown = turndownService.turndown(editorRef.current.innerHTML);
+              await updateDraft(id, { title, content: markdown, status: 'published', notes });
+              const updated = await getDraft(id);
+              if (updated) setDraftData(updated);
+              toast.success("Entry published!");
+              navigate('/');
+            }} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
           ) : (
             <Button 
-              onClick={handleRevertToDraft} 
+              onClick={async () => {
+                await updateDraft(id, { status: 'draft' });
+                const updated = await getDraft(id);
+                if (updated) setDraftData(updated);
+                toast.success("Entry reverted to draft.");
+              }} 
               variant="outline" 
               className="rounded-full px-4 py-1 h-auto text-sm font-medium ml-2 border-primary/20 hover:bg-primary/5 gap-2"
             >
@@ -410,7 +418,7 @@ const Editor = () => {
             {!isTypewriterMode && (
               <textarea
                 value={title}
-                onChange={handleTitleChange}
+                onChange={(e) => { setTitle(e.target.value); setIsSaved(false); }}
                 className="w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
                 placeholder="Title"
                 rows={1}
@@ -433,7 +441,6 @@ const Editor = () => {
                 ref={editorRef}
                 contentEditable
                 onInput={handleInput}
-                onKeyDown={handleKeyDown}
                 onSelect={updateCaretInfo}
                 onKeyUp={updateCaretInfo}
                 onMouseUp={updateCaretInfo}
@@ -449,6 +456,16 @@ const Editor = () => {
             </div>
           </div>
         </main>
+
+        {!isTypewriterMode && (
+          <NotesSidebar 
+            notes={notes}
+            onUpdateNote={handleUpdateNote}
+            onDeleteNote={handleDeleteNote}
+            onFocusNote={handleFocusNote}
+            isVisible={isSidebarVisible}
+          />
+        )}
       </div>
     </div>
   );

@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface Note {
+  id: string;
+  text: string;
+  highlightedText: string;
+  createdAt: number;
+}
+
 export interface Draft {
   id: string;
   title: string;
   content: string;
+  notes: Note[];
   created_at: string;
   updated_at: string;
   status: 'draft' | 'published';
@@ -51,7 +59,7 @@ export const useDrafts = () => {
 
     const { data, error } = await supabase
       .from('drafts')
-      .insert([{ user_id: user.id }])
+      .insert([{ user_id: user.id, notes: [] }])
       .select()
       .single();
 
