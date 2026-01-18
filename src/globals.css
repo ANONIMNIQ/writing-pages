@@ -153,3 +153,8 @@
   line-height: 32px !important;
   font-size: 1.125rem !important;
 }
+
+/* Disable visual highlights and click interaction in typewriter mode for maximum focus */
+.typewriter-active .note-highlight {
+  @apply bg-transparent border-none p-0 cursor-text !important;
+}
