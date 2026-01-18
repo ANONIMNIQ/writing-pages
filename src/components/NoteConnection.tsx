@@ -16,7 +16,6 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
       return;
     }
 
-    // Increased delay to wait for 'smooth' scroll to finish (approx 500-600ms)
     const timer = setTimeout(() => {
       const highlight = editorRef.current?.querySelector(`.note-highlight[data-note-id="${activeNoteId}"]`);
       const noteCard = document.getElementById(`note-card-${activeNoteId}`);
@@ -33,8 +32,7 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
         });
         setIsVisible(true);
 
-        // Hide after 1.5 seconds (down from 2s)
-        const hideTimer = setTimeout(() => setIsVisible(false), 1500);
+        const hideTimer = setTimeout(() => setIsVisible(false), 2000);
         return () => clearTimeout(hideTimer);
       }
     }, 600); 
@@ -44,42 +42,56 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
 
   if (!isVisible || !coords) return null;
 
+  // Calculate the angle for the arrowhead
+  const angle = Math.atan2(coords.y2 - coords.y1, coords.x2 - coords.x1) * 180 / Math.PI;
+
   return createPortal(
     <svg 
       className="fixed inset-0 pointer-events-none z-[100] overflow-visible"
-      style={{ filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.3))' }}
+      style={{ filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.4))' }}
     >
-      <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="10"
-          markerHeight="7"
-          refX="9"
-          refY="3.5"
-          orient="auto"
-        >
-          <polygon points="0 0, 10 3.5, 0 7" className="fill-yellow-500/80 dark:fill-green-500/80" />
-        </marker>
-      </defs>
-      
+      {/* Path with high dasharray to prevent cutting on long distances */}
       <path
         d={`M ${coords.x1} ${coords.y1} C ${coords.x1 + (coords.x2 - coords.x1) / 2} ${coords.y1}, ${coords.x1 + (coords.x2 - coords.x1) / 2} ${coords.y2}, ${coords.x2} ${coords.y2}`}
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
-        className="text-yellow-500/60 dark:text-green-500/60 animate-in fade-in duration-300"
-        strokeDasharray="1000"
-        strokeDashoffset="1000"
+        className="text-yellow-500/60 dark:text-green-500/60"
+        strokeDasharray="5000"
+        strokeDashoffset="5000"
         style={{
           animation: 'drawPath 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards'
         }}
-        markerEnd="url(#arrowhead)"
       />
+
+      {/* Separate Arrowhead that appears after the line finishes drawing */}
+      <g 
+        transform={`translate(${coords.x2}, ${coords.y2}) rotate(${angle})`}
+        className="opacity-0"
+        style={{
+          animation: 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.75s forwards'
+        }}
+      >
+        <polygon 
+          points="-10,-6 2,0 -10,6" 
+          className="fill-yellow-500 dark:fill-green-500" 
+        />
+      </g>
 
       <style>{`
         @keyframes drawPath {
           to {
             stroke-dashoffset: 0;
+          }
+        }
+        @keyframes popIn {
+          from {
+            opacity: 0;
+            transform: translate(${coords.x2}px, ${coords.y2}px) rotate(${angle}deg) scale(0);
+          }
+          to {
+            opacity: 1;
+            transform: translate(${coords.x2}px, ${coords.y2}px) rotate(${angle}deg) scale(1);
           }
         }
       `}</style>
