@@ -373,7 +373,9 @@ const Editor = () => {
               <span>Revert to Draft</span>
             </Button>
           )}
-          <ExportOptions title={title} content={editorRef.current ? turndownService.turndown(editorRef.current.innerHTML) : ''} />
+          {draftData.status === 'published' && (
+            <ExportOptions title={title} content={editorRef.current ? turndownService.turndown(editorRef.current.innerHTML) : ''} />
+          )}
           <UserMenu isAdmin={isAdmin} />
         </div>
       </header>
