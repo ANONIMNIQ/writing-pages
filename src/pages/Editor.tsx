@@ -8,6 +8,7 @@ import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import EditorSidebar from '@/components/EditorSidebar';
 import NotesSidebar from '@/components/NotesSidebar';
 import EditorStats from '@/components/EditorStats';
+import NoteConnection from '@/components/NoteConnection';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
 import { toast } from 'sonner';
@@ -571,6 +572,8 @@ const Editor = () => {
         readingTime={stats.readingTime} 
         isTypewriterMode={isTypewriterMode} 
       />
+
+      <NoteConnection activeNoteId={activeNoteId} editorRef={editorRef} />
     </div>
   );
 };
