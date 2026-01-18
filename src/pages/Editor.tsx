@@ -15,6 +15,7 @@ import { marked } from 'marked';
 import TurndownService from 'turndown';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { Badge } from '@/components/ui/badge';
 
 const turndownService = new TurndownService();
 turndownService.addRule('emptyParagraph', {
@@ -398,7 +399,13 @@ const Editor = () => {
             <Menu className="h-5 w-5" />
           </Button>
           <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
-            <ChevronLeft className="mr-1 h-5 w-5" /> Wr1te Pages
+            <ChevronLeft className="mr-1 h-5 w-5" /> 
+            <div className="flex items-center gap-2">
+              <span>Wr1te Pages</span>
+              <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary/60 border-none">
+                Beta
+              </Badge>
+            </div>
           </Link>
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
             {isSaved ? 'Saved' : 'Saving...'}

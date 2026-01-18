@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
 import { useDrafts } from '@/hooks/use-drafts';
+import { Badge } from '@/components/ui/badge';
 
 interface HeaderProps {
   isAdmin?: boolean;
@@ -25,7 +26,12 @@ export const Header: React.FC<HeaderProps> = ({ isAdmin }) => {
         <div className="flex items-center space-x-4">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="w-2 h-2 rounded-full bg-primary" />
-            <span className="text-xl font-bold tracking-tight font-serif">Wr1te Pages</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold tracking-tight font-serif">Wr1te Pages</span>
+              <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary/60 border-none">
+                Beta
+              </Badge>
+            </div>
           </Link>
         </div>
 
