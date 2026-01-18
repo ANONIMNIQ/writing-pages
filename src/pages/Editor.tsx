@@ -272,6 +272,9 @@ const Editor = () => {
         const noteId = highlight.getAttribute('data-note-id');
         if (noteId) {
           setActiveNoteId(noteId);
+          // Manually trigger the pulse ring on direct click
+          highlight.classList.add('ring-highlight');
+          setTimeout(() => highlight.classList.remove('ring-highlight'), 1500);
         }
       } else {
         // Clear active note if clicking outside

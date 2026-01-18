@@ -60,16 +60,16 @@ const NoteConnection: React.FC<NoteConnectionProps> = ({ activeNoteId, editorRef
         strokeDasharray="5000"
         strokeDashoffset="5000"
         style={{
-          animation: 'drawPath 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards'
+          animation: 'drawPath 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards'
         }}
       />
 
-      {/* Separate Arrowhead that appears after the line finishes drawing */}
+      {/* Separate Arrowhead that appears instantly after the line finishes drawing */}
       <g 
         transform={`translate(${coords.x2}, ${coords.y2}) rotate(${angle})`}
         className="opacity-0"
         style={{
-          animation: 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.75s forwards'
+          animation: 'popIn 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.45s forwards'
         }}
       >
         <polygon 
