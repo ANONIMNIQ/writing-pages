@@ -253,19 +253,16 @@ const Editor = () => {
         let node = range.startContainer;
         if (node.nodeType === 3) node = node.parentElement!;
         
-        // Find the high-level block container (prioritize H1/H2/BLOCKQUOTE over P)
         const highLevelBlock = (node as HTMLElement).closest('h1, h2, blockquote');
         const currentTag = highLevelBlock?.tagName;
 
         if (currentTag === tag) {
-          // If already the requested format, toggle back to paragraph
           if (tag === 'BLOCKQUOTE') {
             document.execCommand('outdent', false);
           } else {
             document.execCommand('formatBlock', false, 'p');
           }
         } else {
-          // Otherwise apply the format
           document.execCommand('formatBlock', false, tag);
         }
       }
@@ -288,9 +285,14 @@ const Editor = () => {
     const currentHtml = editorRef.current.innerHTML;
     const markdown = turndownService.turndown(currentHtml);
     await updateDraft(id, { title: title || 'Untitled', content: markdown, status: 'published' });
+    
+    // Force a data refresh to update the header color immediately
+    const updated = await getDraft(id);
+    if (updated) setDraftData(updated);
+    
     toast.success("Entry published!");
     navigate('/');
-  }, [id, updateDraft, navigate, title]);
+  }, [id, updateDraft, navigate, title, getDraft]);
 
   const handleChapterClick = (chapterId: string) => {
     const element = document.getElementById(chapterId);
@@ -314,12 +316,17 @@ const Editor = () => {
 
   if (!id || !draftData) return null;
 
+  const headerBgColor = draftData.status === 'published' 
+    ? "bg-[#fdf6e3] dark:bg-[#2a271f]" 
+    : "bg-zinc-100 dark:bg-zinc-900";
+
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
       {!isTypewriterMode && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
       
       <header className={cn(
-        "p-4 border-b border-border/50 flex justify-between items-center z-20 bg-background/80 backdrop-blur-sm transition-all duration-700",
+        "p-4 border-b border-border/50 flex justify-between items-center z-20 backdrop-blur-sm transition-all duration-700",
+        headerBgColor,
         isTypewriterMode ? "opacity-0 -translate-y-full pointer-events-none absolute w-full" : "opacity-100 translate-y-0"
       )}>
         <div className="flex items-center space-x-4">
@@ -343,7 +350,9 @@ const Editor = () => {
             <Keyboard className="h-5 w-5" />
           </Button>
           <ThemeToggle />
-          <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
+          {draftData.status === 'draft' && (
+            <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700 text-white rounded-full px-4 py-1 h-auto text-sm font-medium ml-2">Publish</Button>
+          )}
           <ExportOptions title={title} content={editorRef.current ? turndownService.turndown(editorRef.current.innerHTML) : ''} />
           <UserMenu isAdmin={isAdmin} />
         </div>
