@@ -7,6 +7,7 @@ import ExportOptions from '@/components/ExportOptions';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import EditorSidebar from '@/components/EditorSidebar';
 import NotesSidebar from '@/components/NotesSidebar';
+import EditorStats from '@/components/EditorStats';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
 import { toast } from 'sonner';
@@ -60,6 +61,7 @@ const Editor = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [stats, setStats] = useState({ characters: 0, readingTime: 0 });
 
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -78,6 +80,15 @@ const Editor = () => {
       }
     };
     checkRole();
+  }, []);
+
+  const updateStats = useCallback(() => {
+    if (!editorRef.current) return;
+    const text = editorRef.current.innerText || "";
+    const characters = text.length;
+    const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+    const readingTime = Math.ceil(words / 200) || 1; // Assuming 200 WPM
+    setStats({ characters, readingTime });
   }, []);
 
   const updateChapters = useCallback(() => {
@@ -118,8 +129,9 @@ const Editor = () => {
       editorRef.current.innerHTML = htmlContent;
       isContentInitialized.current = true;
       updateChapters();
+      updateStats();
     }
-  }, [draftData, updateChapters]);
+  }, [draftData, updateChapters, updateStats]);
 
   const updateCaretInfo = useCallback(() => {
     requestAnimationFrame(() => {
@@ -192,6 +204,7 @@ const Editor = () => {
     setIsSaved(false);
     updateCaretInfo();
     updateChapters();
+    updateStats();
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -327,6 +340,7 @@ const Editor = () => {
     setToolbarPos(null);
     editorRef.current?.focus();
     updateChapters();
+    updateStats();
   };
 
   const handleUpdateNote = (noteId: string, text: string) => {
@@ -551,6 +565,12 @@ const Editor = () => {
           />
         )}
       </div>
+
+      <EditorStats 
+        characters={stats.characters} 
+        readingTime={stats.readingTime} 
+        isTypewriterMode={isTypewriterMode} 
+      />
     </div>
   );
 };
