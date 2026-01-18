@@ -35,6 +35,7 @@ turndownService.addRule('noteHighlight', {
 
 const LINE_HEIGHT = 32;
 const FOCUS_OFFSET_VH = 40; 
+const MAX_TITLE_LENGTH = 30;
 
 interface Chapter {
   id: string;
@@ -191,6 +192,14 @@ const Editor = () => {
     setIsSaved(false);
     updateCaretInfo();
     updateChapters();
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value.length <= MAX_TITLE_LENGTH) {
+      setTitle(value);
+      setIsSaved(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -482,13 +491,20 @@ const Editor = () => {
             style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
           >
             {!isTypewriterMode && (
-              <textarea
-                value={title}
-                onChange={(e) => { setTitle(e.target.value); setIsSaved(false); }}
-                className="w-full resize-none text-5xl font-serif font-extrabold leading-tight mb-8 focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
-                placeholder="Title"
-                rows={1}
-              />
+              <div className="mb-8">
+                <textarea
+                  value={title}
+                  onChange={handleTitleChange}
+                  className="w-full resize-none text-5xl font-serif font-extrabold leading-tight focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
+                  placeholder="Title"
+                  rows={1}
+                />
+                <div className="flex justify-end">
+                  <span className="text-xs text-muted-foreground/40 font-mono">
+                    {title.length}/{MAX_TITLE_LENGTH}
+                  </span>
+                </div>
+              </div>
             )}
             
             <div className="relative">
