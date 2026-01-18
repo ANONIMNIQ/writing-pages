@@ -237,7 +237,6 @@ const Editor = () => {
   };
 
   // Add click listener to the editor to handle highlight clicks
-  // Dependency on draftData ensures this runs once the editor is in the DOM
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -348,8 +347,8 @@ const Editor = () => {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
       if (highlight) {
         highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        highlight.classList.add('ring-2', 'ring-green-400');
-        setTimeout(() => highlight.classList.remove('ring-2', 'ring-green-400'), 1500);
+        highlight.classList.add('ring-highlight');
+        setTimeout(() => highlight.classList.remove('ring-highlight'), 1500);
       }
     }
   };

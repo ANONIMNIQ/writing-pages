@@ -66,7 +66,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
                   className={cn(
                     "group transition-all duration-300 rounded-xl border cursor-pointer overflow-hidden",
                     isActive 
-                      ? "bg-green-100/40 dark:bg-green-900/20 border-green-200/50 dark:border-green-800/30 shadow-sm" 
+                      ? "bg-yellow-50 dark:bg-green-900/20 border-yellow-200/50 dark:border-green-800/30 shadow-sm" 
                       : "bg-transparent border-transparent hover:border-border/40 hover:bg-accent/30"
                   )}
                   onClick={() => onFocusNote(note.id)}
@@ -76,7 +76,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
                       <div className="flex-1">
                         <p className={cn(
                           "text-[10px] font-bold uppercase tracking-tighter mb-1 transition-colors",
-                          isActive ? "text-green-600 dark:text-green-400" : "text-primary/40"
+                          isActive ? "text-yellow-700 dark:text-green-400" : "text-primary/40"
                         )}>
                           "{note.highlightedText}"
                         </p>
@@ -95,7 +95,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
                           <Trash2 size={12} />
                         </Button>
                         {isActive ? (
-                          <ChevronUp size={14} className="ml-1 text-green-600/50" />
+                          <ChevronUp size={14} className={cn("ml-1", isActive ? "text-yellow-600/50 dark:text-green-600/50" : "opacity-20")} />
                         ) : (
                           <ChevronDown size={14} className="ml-1 opacity-20" />
                         )}
@@ -108,7 +108,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
                           value={note.text}
                           onChange={(e) => onUpdateNote(note.id, e.target.value)}
                           placeholder="Add your thoughts..."
-                          className="min-h-[100px] bg-white/40 dark:bg-black/20 border-none focus-visible:ring-0 p-3 text-sm leading-relaxed resize-none rounded-lg"
+                          className="min-h-[100px] bg-white/60 dark:bg-black/20 border-none focus-visible:ring-0 p-3 text-sm leading-relaxed resize-none rounded-lg"
                           autoFocus
                           onClick={(e) => e.stopPropagation()}
                         />
