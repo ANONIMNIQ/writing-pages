@@ -23,7 +23,7 @@ turndownService.addRule('emptyParagraph', {
     return content ? '\n\n' + content + '\n\n' : '\n\n';
   }
 });
-// Preserve highlight spans for notes
+
 turndownService.addRule('noteHighlight', {
   filter: (node) => node.nodeName === 'SPAN' && node.classList.contains('note-highlight'),
   replacement: (content, node) => {
@@ -92,7 +92,6 @@ const Editor = () => {
     setChapters(newChapters);
   }, []);
 
-  // Fetch draft data
   useEffect(() => {
     const fetchDraft = async () => {
       if (id) {
@@ -110,7 +109,6 @@ const Editor = () => {
     fetchDraft();
   }, [id, getDraft, navigate]);
 
-  // Initialize editor content once ref is available
   useEffect(() => {
     if (draftData && editorRef.current && !isContentInitialized.current) {
       const htmlContent = marked.parse(draftData.content || '') as string;
@@ -193,6 +191,53 @@ const Editor = () => {
     updateChapters();
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const node = range.startContainer;
+    const parentElement = node.nodeType === 3 ? node.parentElement : (node as HTMLElement);
+    const highlightSpan = parentElement?.closest('.note-highlight');
+
+    // If typing at the end of a highlight span, break out of it on Space or Enter
+    if (highlightSpan && selection.isCollapsed) {
+      const isAtEnd = range.startOffset === (node.textContent?.length || 0);
+      
+      if (isAtEnd && (e.key === ' ' || e.key === 'Enter')) {
+        e.preventDefault();
+        
+        const afterNode = document.createTextNode(e.key === ' ' ? '\u00A0' : '\u00A0');
+        highlightSpan.parentNode?.insertBefore(afterNode, highlightSpan.nextSibling);
+
+        if (e.key === 'Enter') {
+          // If Enter, we actually want a new paragraph after the span's block
+          const p = document.createElement('p');
+          p.innerHTML = '<br>';
+          const block = highlightSpan.closest('p, h1, h2, blockquote') || highlightSpan.parentNode;
+          block?.parentNode?.insertBefore(p, block.nextSibling);
+          
+          const newRange = document.createRange();
+          newRange.setStart(p, 0);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        } else {
+          // If Space, just move caret after the span
+          const newRange = document.createRange();
+          newRange.setStart(afterNode, 1);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+        
+        setIsSaved(false);
+        updateCaretInfo();
+        return;
+      }
+    }
+  };
+
   const applyFormat = (type: string) => {
     if (type === 'addNote') {
       const selection = window.getSelection();
@@ -200,7 +245,6 @@ const Editor = () => {
         const highlightedText = selection.toString();
         const noteId = uuidv4();
         
-        // Wrap selection in highlight span
         const span = document.createElement('span');
         span.className = "note-highlight bg-green-200/50 dark:bg-green-900/40 rounded px-1 transition-colors cursor-help";
         span.setAttribute('data-note-id', noteId);
@@ -208,7 +252,6 @@ const Editor = () => {
         const range = selection.getRangeAt(0);
         range.surroundContents(span);
         
-        // Add note to state
         const newNote: Note = {
           id: noteId,
           text: "",
@@ -220,7 +263,6 @@ const Editor = () => {
         setIsSaved(false);
         setToolbarPos(null);
         
-        // Focus the new note after a brief delay
         setTimeout(() => {
            const card = document.getElementById(`note-card-${noteId}`);
            card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -266,7 +308,6 @@ const Editor = () => {
   };
 
   const handleDeleteNote = (noteId: string) => {
-    // Remove highlight from DOM
     if (editorRef.current) {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
       if (highlight) {
@@ -287,7 +328,6 @@ const Editor = () => {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
       if (highlight) {
         highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Briefly flash the highlight
         highlight.classList.add('ring-2', 'ring-green-400');
         setTimeout(() => highlight.classList.remove('ring-2', 'ring-green-400'), 1500);
       }
@@ -441,6 +481,7 @@ const Editor = () => {
                 ref={editorRef}
                 contentEditable
                 onInput={handleInput}
+                onKeyDown={handleKeyDown}
                 onSelect={updateCaretInfo}
                 onKeyUp={updateCaretInfo}
                 onMouseUp={updateCaretInfo}
