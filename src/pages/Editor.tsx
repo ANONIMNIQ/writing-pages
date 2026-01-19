@@ -453,7 +453,7 @@ const Editor = () => {
           <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
             <ChevronLeft className="mr-1 h-5 w-5" /> 
             <div className="flex items-center gap-2">
-              <span className="hidden xs:inline">Wr1te Pages</span>
+              <span className="inline">Wr1te Pages</span>
               <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary/60 border-none">
                 Beta
               </Badge>
