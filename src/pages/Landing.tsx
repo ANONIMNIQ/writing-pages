@@ -30,7 +30,7 @@ const Landing = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Registration successful! Check your email for verification.');
+      toast.success('Registration successful! You can now log in.');
       navigate('/login');
     }
     setLoading(false);
