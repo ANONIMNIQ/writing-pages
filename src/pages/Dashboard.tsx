@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useDrafts } from '@/hooks/use-drafts';
 import DraftListItem from '@/components/DraftListItem';
+import DraftSkeleton from '@/components/DraftSkeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Header } from '@/components/Header';
@@ -10,7 +11,7 @@ import { toast } from 'sonner';
 const MAX_TITLE_LENGTH = 30;
 
 const Dashboard = () => {
-  const { drafts, createDraft, deleteDraft, updateDraft } = useDrafts();
+  const { drafts, loading, createDraft, deleteDraft, updateDraft } = useDrafts();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
@@ -39,9 +40,8 @@ const Dashboard = () => {
 
     const newId = await createDraft();
     if (newId) {
-      // Update the newly created draft with the title
       await updateDraft(newId, { title: trimmedTitle });
-      setQuickTitle(''); // Clear input after creation
+      setQuickTitle('');
       navigate(`/editor/${newId}`);
     } else {
       toast.error("Failed to create new draft.");
@@ -80,7 +80,6 @@ const Dashboard = () => {
           </header>
 
           <div className="max-w-xl lg:ml-20">
-            {/* Quick Title Input */}
             <div className="mb-12 lg:mb-20 group">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-foreground/30 mb-4">Draft an idea...</p>
               <div className="flex items-start space-x-4">
@@ -101,7 +100,9 @@ const Dashboard = () => {
             </div>
 
             <div className="space-y-1">
-              {draftEntries.length > 0 ? (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => <DraftSkeleton key={i} />)
+              ) : draftEntries.length > 0 ? (
                 draftEntries.map(draft => (
                   <DraftListItem key={draft.id} draft={draft} onDelete={deleteDraft} />
                 ))
@@ -119,7 +120,9 @@ const Dashboard = () => {
           </header>
 
           <div className="space-y-1">
-            {publishedEntries.length > 0 ? (
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => <DraftSkeleton key={i} />)
+            ) : publishedEntries.length > 0 ? (
               publishedEntries.map(draft => (
                 <DraftListItem key={draft.id} draft={draft} isPublished onDelete={deleteDraft} />
               ))

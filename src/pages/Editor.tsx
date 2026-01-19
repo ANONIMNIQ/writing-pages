@@ -66,6 +66,7 @@ const Editor = () => {
 
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const isContentInitialized = useRef(false);
 
   useEffect(() => {
@@ -88,7 +89,7 @@ const Editor = () => {
     const text = editorRef.current.innerText || "";
     const characters = text.length;
     const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
-    const readingTime = Math.ceil(words / 200) || 1; // Assuming 200 WPM
+    const readingTime = Math.ceil(words / 200) || 1; 
     setStats({ characters, readingTime });
   }, []);
 
@@ -163,7 +164,8 @@ const Editor = () => {
       if (isTypewriterMode) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
         const caretYRelativeToEditor = rect.top - editorRect.top;
-        setTypewriterOffset(focusPointY - caretYRelativeToEditor);
+        const scrollOffset = mainRef.current?.scrollTop || 0;
+        setTypewriterOffset(focusPointY - caretYRelativeToEditor + scrollOffset);
       }
 
       if (!selection.isCollapsed) {
@@ -176,6 +178,19 @@ const Editor = () => {
       }
     });
   }, [isTypewriterMode]);
+
+  const moveCaretToEnd = useCallback(() => {
+    if (!editorRef.current) return;
+    const el = editorRef.current;
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    el.focus();
+    updateCaretInfo();
+  }, [updateCaretInfo]);
 
   const saveContent = useCallback(async () => {
     if (!id || !isContentInitialized.current) return;
@@ -260,7 +275,6 @@ const Editor = () => {
     }
   };
 
-  // Add click listener to the editor to handle highlight clicks
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -272,12 +286,10 @@ const Editor = () => {
         const noteId = highlight.getAttribute('data-note-id');
         if (noteId) {
           setActiveNoteId(noteId);
-          // Manually trigger the pulse ring on direct click
           highlight.classList.add('ring-highlight');
           setTimeout(() => highlight.classList.remove('ring-highlight'), 1500);
         }
       } else {
-        // Clear active note if clicking outside
         setActiveNoteId(null);
       }
     };
@@ -442,9 +454,8 @@ const Editor = () => {
           <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
             setIsTypewriterMode(true);
             setTimeout(() => {
-              editorRef.current?.focus();
-              updateCaretInfo();
-            }, 50);
+              moveCaretToEnd();
+            }, 100);
           }} title="Typewriter Mode">
             <Keyboard className="h-5 w-5" />
           </Button>
@@ -497,9 +508,11 @@ const Editor = () => {
         )}
 
         <main 
+          ref={mainRef}
+          onScroll={isTypewriterMode ? updateCaretInfo : undefined}
           className={cn(
-            "flex-1 flex justify-center relative outline-none transition-all duration-500",
-            isTypewriterMode ? "overflow-hidden bg-background" : "p-8 md:p-16 lg:p-24 overflow-y-auto"
+            "flex-1 flex justify-center relative outline-none transition-all duration-500 overflow-y-auto",
+            isTypewriterMode ? "bg-background hide-scrollbar" : "p-8 md:p-16 lg:p-24"
           )}
           style={isTypewriterMode ? { maskImage: typewriterMask, WebkitMaskImage: typewriterMask } : {}}
         >
