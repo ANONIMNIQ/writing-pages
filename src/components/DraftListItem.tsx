@@ -39,7 +39,7 @@ const DraftListItem: React.FC<DraftListItemProps> = ({ draft, isPublished = fals
           className="flex-1 block"
         >
           <span className={cn(
-            "text-2xl tracking-tight transition-colors",
+            "text-2xl tracking-tight transition-colors font-serif",
             isPublished ? "text-foreground/30 font-light" : "text-foreground/80 font-medium"
           )}>
             {draft.title || 'Untitled'}
