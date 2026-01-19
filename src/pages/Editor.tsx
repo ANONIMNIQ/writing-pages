@@ -134,7 +134,9 @@ const Editor = () => {
     }
   }, [draftData, updateChapters, updateStats]);
 
-  const updateCaretInfo = useCallback((immediateScroll = false) => {
+  const updateCaretInfo = useCallback((options: { immediateScroll?: boolean; allowTypewriterScroll?: boolean } = {}) => {
+    const { immediateScroll = false, allowTypewriterScroll = false } = options;
+    
     requestAnimationFrame(() => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || !editorRef.current || !wrapperRef.current) return;
@@ -162,8 +164,8 @@ const Editor = () => {
       
       setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
 
-      // Typewriter mode scrolling logic
-      if (isTypewriterMode && mainElement) {
+      // Typewriter mode scrolling logic - only run if explicitly allowed (usually during typing/caret movement)
+      if (isTypewriterMode && mainElement && allowTypewriterScroll) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
         const caretYInViewport = rect.top;
         const diff = caretYInViewport - focusPointY;
@@ -204,7 +206,7 @@ const Editor = () => {
     sel?.addRange(range);
     
     // Force layout update and scroll
-    setTimeout(() => updateCaretInfo(true), 10);
+    setTimeout(() => updateCaretInfo({ immediateScroll: true, allowTypewriterScroll: true }), 10);
   }, [updateCaretInfo]);
 
   const saveContent = useCallback(async () => {
@@ -233,7 +235,7 @@ const Editor = () => {
 
   const handleInput = () => {
     setIsSaved(false);
-    updateCaretInfo();
+    updateCaretInfo({ allowTypewriterScroll: true });
     updateChapters();
     updateStats();
   };
@@ -284,7 +286,7 @@ const Editor = () => {
         }
         
         setIsSaved(false);
-        updateCaretInfo();
+        updateCaretInfo({ allowTypewriterScroll: true });
         return;
       }
     }
@@ -521,7 +523,7 @@ const Editor = () => {
 
         <main 
           ref={mainRef}
-          onScroll={updateCaretInfo}
+          onScroll={() => updateCaretInfo({ allowTypewriterScroll: false })}
           className={cn(
             "flex-1 flex justify-center relative outline-none transition-all duration-500 overflow-y-auto scroll-smooth",
             isTypewriterMode ? "bg-background hide-scrollbar pb-0" : "p-8 md:p-16 lg:p-24"
@@ -566,9 +568,9 @@ const Editor = () => {
                 contentEditable
                 onInput={handleInput}
                 onKeyDown={handleKeyDown}
-                onSelect={updateCaretInfo}
-                onKeyUp={updateCaretInfo}
-                onMouseUp={updateCaretInfo}
+                onSelect={() => updateCaretInfo({ allowTypewriterScroll: true })}
+                onKeyUp={() => updateCaretInfo({ allowTypewriterScroll: true })}
+                onMouseUp={() => updateCaretInfo({ allowTypewriterScroll: true })}
                 className={cn(
                   "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent max-w-none relative z-0 pb-[70vh]",
                   isTypewriterMode 
