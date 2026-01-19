@@ -56,7 +56,6 @@ const Editor = () => {
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
   const [plusButtonTop, setPlusButtonTop] = useState<number | null>(null);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
-  const [typewriterOffset, setTypewriterOffset] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -143,6 +142,7 @@ const Editor = () => {
       const range = selection.getRangeAt(0);
       let rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
+      const mainElement = mainRef.current;
 
       if (rect.height === 0 || rect.top === 0) {
         const container = range.startContainer;
@@ -161,11 +161,16 @@ const Editor = () => {
       
       setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
 
-      if (isTypewriterMode) {
+      // Typewriter mode scrolling logic
+      if (isTypewriterMode && mainElement) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
-        const caretYRelativeToEditor = rect.top - editorRect.top;
-        const scrollOffset = mainRef.current?.scrollTop || 0;
-        setTypewriterOffset(focusPointY - caretYRelativeToEditor + scrollOffset);
+        const caretYInViewport = rect.top;
+        const diff = caretYInViewport - focusPointY;
+        
+        // If the caret is not on the focus line, adjust the scroll
+        if (Math.abs(diff) > 2) {
+          mainElement.scrollTop += diff;
+        }
       }
 
       if (!selection.isCollapsed) {
@@ -189,7 +194,8 @@ const Editor = () => {
     sel?.removeAllRanges();
     sel?.addRange(range);
     el.focus();
-    updateCaretInfo();
+    // Use a small delay to ensure the DOM has settled before calculating positions
+    setTimeout(updateCaretInfo, 10);
   }, [updateCaretInfo]);
 
   const saveContent = useCallback(async () => {
@@ -397,9 +403,6 @@ const Editor = () => {
     const element = document.getElementById(chapterId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (isTypewriterMode) {
-        setTimeout(updateCaretInfo, 500);
-      }
     }
   };
 
@@ -493,7 +496,7 @@ const Editor = () => {
       </header>
 
       {isTypewriterMode && (
-        <Button variant="secondary" size="icon" className="fixed top-6 right-6 z-50 rounded-full shadow-lg opacity-90 hover:opacity-100 transition-all scale-110" onClick={() => { setIsTypewriterMode(false); setTypewriterOffset(0); }}>
+        <Button variant="secondary" size="icon" className="fixed top-6 right-6 z-50 rounded-full shadow-lg opacity-90 hover:opacity-100 transition-all scale-110" onClick={() => { setIsTypewriterMode(false); }}>
           <Plus className="h-6 w-6 rotate-45" />
         </Button>
       )}
@@ -509,17 +512,16 @@ const Editor = () => {
 
         <main 
           ref={mainRef}
-          onScroll={isTypewriterMode ? updateCaretInfo : undefined}
+          onScroll={updateCaretInfo}
           className={cn(
             "flex-1 flex justify-center relative outline-none transition-all duration-500 overflow-y-auto",
-            isTypewriterMode ? "bg-background hide-scrollbar" : "p-8 md:p-16 lg:p-24"
+            isTypewriterMode ? "bg-background hide-scrollbar pb-0" : "p-8 md:p-16 lg:p-24"
           )}
           style={isTypewriterMode ? { maskImage: typewriterMask, WebkitMaskImage: typewriterMask } : {}}
         >
           <div 
             ref={wrapperRef}
-            className="w-full max-w-4xl relative z-0 transition-transform duration-300 ease-out will-change-transform"
-            style={isTypewriterMode ? { transform: `translateY(${typewriterOffset}px)` } : {}}
+            className="w-full max-w-4xl relative z-0 transition-all duration-300"
           >
             {!isTypewriterMode && (
               <div className="mb-8">
@@ -559,9 +561,9 @@ const Editor = () => {
                 onKeyUp={updateCaretInfo}
                 onMouseUp={updateCaretInfo}
                 className={cn(
-                  "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent max-w-none relative z-0 pb-[50vh]",
+                  "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent max-w-none relative z-0 pb-[70vh]",
                   isTypewriterMode 
-                    ? "font-mono typewriter-active caret-[#00BFFF] leading-[32px] cursor-text" 
+                    ? "font-mono typewriter-active caret-[#00BFFF] leading-[32px] cursor-text pt-[40vh]" 
                     : "font-serif caret-primary leading-[32px] cursor-text prose prose-xl prose-stone dark:prose-invert"
                 )}
                 style={{ lineHeight: `${LINE_HEIGHT}px` }}
