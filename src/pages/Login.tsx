@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
+import FloatingInput from '@/components/FloatingInput';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -35,28 +34,22 @@ const Login = () => {
         <h1 className="text-6xl font-black tracking-tighter">Login.</h1>
         
         <form onSubmit={handleLogin} className="space-y-12">
-          <div className="space-y-8">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold uppercase tracking-widest text-gray-500">Email address</Label>
-              <Input 
-                type="email" 
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent border-t-0 border-x-0 border-b-2 border-gray-800 rounded-none px-0 text-2xl focus-visible:ring-0 focus-visible:border-white transition-colors h-14" 
-              />
-            </div>
+          <div className="space-y-4">
+            <FloatingInput 
+              label="Email address"
+              type="email" 
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold uppercase tracking-widest text-gray-500">Password</Label>
-              <Input 
-                type="password" 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent border-t-0 border-x-0 border-b-2 border-gray-800 rounded-none px-0 text-2xl focus-visible:ring-0 focus-visible:border-white transition-colors h-14" 
-              />
-            </div>
+            <FloatingInput 
+              label="Password"
+              type="password" 
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
           <div className="pt-8 space-y-6">
