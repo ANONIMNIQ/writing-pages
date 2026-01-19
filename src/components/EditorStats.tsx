@@ -11,8 +11,8 @@ interface EditorStatsProps {
 const EditorStats: React.FC<EditorStatsProps> = ({ characters, readingTime, isTypewriterMode }) => {
   return (
     <div className={cn(
-      "fixed bottom-6 right-6 flex items-center space-x-6 px-4 py-2 rounded-full bg-background/50 backdrop-blur-md border border-border/40 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-all duration-700 z-30",
-      isTypewriterMode ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"
+      "fixed bottom-6 right-6 hidden sm:flex items-center space-x-6 px-4 py-2 rounded-full bg-background/50 backdrop-blur-md border border-border/40 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-all duration-700 z-30",
+      isTypewriterMode ? "sm:opacity-0 sm:pointer-events-none sm:translate-y-4" : "sm:opacity-100"
     )}>
       <div className="flex items-center gap-2">
         <Type className="h-3 w-3" />
