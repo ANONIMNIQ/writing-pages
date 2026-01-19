@@ -31,45 +31,46 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-[#111] text-white flex flex-col items-center pt-24 px-6 font-serif">
-      <div className="max-w-md w-full space-y-12">
-        <h1 className="text-4xl font-black">Login</h1>
+      <div className="max-w-md w-full space-y-16">
+        <h1 className="text-6xl font-black tracking-tighter">Login.</h1>
         
-        <form onSubmit={handleLogin} className="space-y-8">
-          <div className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-12">
+          <div className="space-y-8">
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">Email</Label>
+              <Label className="text-sm font-bold uppercase tracking-widest text-gray-500">Email address</Label>
               <Input 
                 type="email" 
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent border-gray-800 h-12 focus:border-white transition-colors" 
+                className="bg-transparent border-t-0 border-x-0 border-b-2 border-gray-800 rounded-none px-0 text-2xl focus-visible:ring-0 focus-visible:border-white transition-colors h-14" 
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">Password</Label>
+              <Label className="text-sm font-bold uppercase tracking-widest text-gray-500">Password</Label>
               <Input 
                 type="password" 
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent border-gray-800 h-12 focus:border-white transition-colors" 
+                className="bg-transparent border-t-0 border-x-0 border-b-2 border-gray-800 rounded-none px-0 text-2xl focus-visible:ring-0 focus-visible:border-white transition-colors h-14" 
               />
             </div>
           </div>
 
-          <Button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-white text-black hover:bg-gray-200 h-12 font-bold"
-          >
-            {loading ? 'Logging in...' : 'Log In'}
-          </Button>
-
-          <p className="text-center text-sm text-gray-500">
-            Don't have an account? <Link to="/signup" className="text-white underline underline-offset-4">Sign up</Link>
-          </p>
+          <div className="pt-8 space-y-6">
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="bg-transparent border border-white text-white hover:bg-white hover:text-black rounded px-8 py-6 text-xl transition-all h-auto w-full sm:w-auto"
+            >
+              {loading ? 'Logging in...' : 'Log In →'}
+            </Button>
+            <p className="text-center sm:text-left text-sm text-gray-500">
+              Don't have an account? <Link to="/signup" className="text-white underline underline-offset-4">Sign up</Link>
+            </p>
+          </div>
         </form>
       </div>
     </div>

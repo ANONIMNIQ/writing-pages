@@ -18,6 +18,7 @@ import TurndownService from 'turndown';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const turndownService = new TurndownService();
 turndownService.addRule('emptyParagraph', {
@@ -48,6 +49,7 @@ interface Chapter {
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { getDraft, updateDraft } = useDrafts();
   
   const [draftData, setDraftData] = useState<any>(null);
@@ -146,7 +148,6 @@ const Editor = () => {
       const editorRect = editorRef.current.getBoundingClientRect();
       const mainElement = mainRef.current;
 
-      // Ensure we have a valid rect even if selection is weird
       if (rect.height === 0 || rect.top === 0) {
         const container = range.startContainer;
         const element = container.nodeType === 1 ? (container as HTMLElement) : container.parentElement;
@@ -164,7 +165,6 @@ const Editor = () => {
       
       setPlusButtonTop(relativeTop + (caretHeight / 2) - (LINE_HEIGHT / 2));
 
-      // Typewriter mode scrolling logic - only run if explicitly allowed (usually during typing/caret movement)
       if (isTypewriterMode && mainElement && allowTypewriterScroll) {
         const focusPointY = window.innerHeight * (FOCUS_OFFSET_VH / 100);
         const caretYInViewport = rect.top;
@@ -173,12 +173,11 @@ const Editor = () => {
         if (immediateScroll) {
           mainElement.scrollTop += diff;
         } else if (Math.abs(diff) > 2) {
-          // Use smooth-ish step for typing
           mainElement.scrollTop += diff;
         }
       }
 
-      if (!selection.isCollapsed) {
+      if (!selection.isCollapsed && !isMobile) {
         setToolbarPos({
           top: rect.top + window.scrollY,
           left: rect.left + rect.width / 2 + window.scrollX
@@ -187,7 +186,7 @@ const Editor = () => {
         setToolbarPos(null);
       }
     });
-  }, [isTypewriterMode]);
+  }, [isTypewriterMode, isMobile]);
 
   const moveCaretToEnd = useCallback(() => {
     if (!editorRef.current) return;
@@ -197,7 +196,6 @@ const Editor = () => {
     const range = document.createRange();
     const sel = window.getSelection();
     
-    // Find the last text node or element with content
     const lastChild = el.lastElementChild || el;
     range.selectNodeContents(lastChild);
     range.collapse(false);
@@ -205,7 +203,6 @@ const Editor = () => {
     sel?.removeAllRanges();
     sel?.addRange(range);
     
-    // Force layout update and scroll
     setTimeout(() => updateCaretInfo({ immediateScroll: true, allowTypewriterScroll: true }), 10);
   }, [updateCaretInfo]);
 
@@ -435,7 +432,7 @@ const Editor = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
-      {!isTypewriterMode && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
+      {!isTypewriterMode && !isMobile && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
       
       <header className={cn(
         "p-4 border-b border-border/50 flex justify-between items-center z-20 backdrop-blur-sm transition-all duration-700",
@@ -443,36 +440,40 @@ const Editor = () => {
         isTypewriterMode ? "opacity-0 -translate-y-full pointer-events-none absolute w-full" : "opacity-100 translate-y-0"
       )}>
         <div className="flex items-center space-x-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full hidden lg:flex" 
-            onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full hidden lg:flex" 
+              onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
           <Link to="/" className="flex items-center text-xl font-serif font-bold tracking-tight">
             <ChevronLeft className="mr-1 h-5 w-5" /> 
             <div className="flex items-center gap-2">
-              <span>Wr1te Pages</span>
+              <span className="hidden xs:inline">Wr1te Pages</span>
               <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary/60 border-none">
                 Beta
               </Badge>
             </div>
           </Link>
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest hidden sm:inline">
             {isSaved ? 'Saved' : 'Saving...'}
           </span>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
-            setIsTypewriterMode(true);
-            setTimeout(() => {
-              moveCaretToEnd();
-            }, 100);
-          }} title="Typewriter Mode">
-            <Keyboard className="h-5 w-5" />
-          </Button>
+          {!isMobile && (
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
+              setIsTypewriterMode(true);
+              setTimeout(() => {
+                moveCaretToEnd();
+              }, 100);
+            }} title="Typewriter Mode">
+              <Keyboard className="h-5 w-5" />
+            </Button>
+          )}
           <ThemeToggle />
           {draftData.status === 'draft' ? (
             <Button onClick={async () => {
@@ -496,7 +497,7 @@ const Editor = () => {
               className="rounded-full px-4 py-1 h-auto text-sm font-medium ml-2 border-primary/20 hover:bg-primary/5 gap-2"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>Revert to Draft</span>
+              <span className="hidden xs:inline">Revert</span>
             </Button>
           )}
           {draftData.status === 'published' && (
@@ -513,7 +514,7 @@ const Editor = () => {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {!isTypewriterMode && (
+        {!isTypewriterMode && !isMobile && (
           <EditorSidebar 
             chapters={chapters} 
             onChapterClick={handleChapterClick} 
@@ -526,7 +527,7 @@ const Editor = () => {
           onScroll={() => updateCaretInfo({ allowTypewriterScroll: false })}
           className={cn(
             "flex-1 flex justify-center relative outline-none transition-all duration-500 overflow-y-auto scroll-smooth",
-            isTypewriterMode ? "bg-background hide-scrollbar pb-0" : "p-8 md:p-16 lg:p-24"
+            isTypewriterMode ? "bg-background hide-scrollbar pb-0" : "p-6 md:p-16 lg:p-24"
           )}
           style={isTypewriterMode ? { maskImage: typewriterMask, WebkitMaskImage: typewriterMask } : {}}
         >
@@ -539,7 +540,7 @@ const Editor = () => {
                 <textarea
                   value={title}
                   onChange={handleTitleChange}
-                  className="w-full resize-none text-5xl font-serif font-extrabold leading-tight focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
+                  className="w-full resize-none text-3xl md:text-5xl font-serif font-extrabold leading-tight focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
                   placeholder="Title"
                   rows={1}
                 />
@@ -552,7 +553,7 @@ const Editor = () => {
             )}
             
             <div className="relative">
-              {!isTypewriterMode && plusButtonTop !== null && (
+              {!isTypewriterMode && !isMobile && plusButtonTop !== null && (
                 <div 
                   className="absolute -left-12 md:-left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100 z-10"
                   style={{ top: `${plusButtonTop}px`, height: `${LINE_HEIGHT}px`, width: '40px' }}
@@ -584,7 +585,7 @@ const Editor = () => {
           </div>
         </main>
 
-        {!isTypewriterMode && (
+        {!isTypewriterMode && !isMobile && (
           <NotesSidebar 
             notes={notes}
             activeNoteId={activeNoteId}
