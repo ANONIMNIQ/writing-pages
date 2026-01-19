@@ -134,7 +134,7 @@ const Editor = () => {
     }
   }, [draftData, updateChapters, updateStats]);
 
-  const updateCaretInfo = useCallback(() => {
+  const updateCaretInfo = useCallback((immediateScroll = false) => {
     requestAnimationFrame(() => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || !editorRef.current || !wrapperRef.current) return;
@@ -144,6 +144,7 @@ const Editor = () => {
       const editorRect = editorRef.current.getBoundingClientRect();
       const mainElement = mainRef.current;
 
+      // Ensure we have a valid rect even if selection is weird
       if (rect.height === 0 || rect.top === 0) {
         const container = range.startContainer;
         const element = container.nodeType === 1 ? (container as HTMLElement) : container.parentElement;
@@ -167,8 +168,10 @@ const Editor = () => {
         const caretYInViewport = rect.top;
         const diff = caretYInViewport - focusPointY;
         
-        // If the caret is not on the focus line, adjust the scroll
-        if (Math.abs(diff) > 2) {
+        if (immediateScroll) {
+          mainElement.scrollTop += diff;
+        } else if (Math.abs(diff) > 2) {
+          // Use smooth-ish step for typing
           mainElement.scrollTop += diff;
         }
       }
@@ -187,15 +190,21 @@ const Editor = () => {
   const moveCaretToEnd = useCallback(() => {
     if (!editorRef.current) return;
     const el = editorRef.current;
+    el.focus();
+    
     const range = document.createRange();
     const sel = window.getSelection();
-    range.selectNodeContents(el);
+    
+    // Find the last text node or element with content
+    const lastChild = el.lastElementChild || el;
+    range.selectNodeContents(lastChild);
     range.collapse(false);
+    
     sel?.removeAllRanges();
     sel?.addRange(range);
-    el.focus();
-    // Use a small delay to ensure the DOM has settled before calculating positions
-    setTimeout(updateCaretInfo, 10);
+    
+    // Force layout update and scroll
+    setTimeout(() => updateCaretInfo(true), 10);
   }, [updateCaretInfo]);
 
   const saveContent = useCallback(async () => {
@@ -514,7 +523,7 @@ const Editor = () => {
           ref={mainRef}
           onScroll={updateCaretInfo}
           className={cn(
-            "flex-1 flex justify-center relative outline-none transition-all duration-500 overflow-y-auto",
+            "flex-1 flex justify-center relative outline-none transition-all duration-500 overflow-y-auto scroll-smooth",
             isTypewriterMode ? "bg-background hide-scrollbar pb-0" : "p-8 md:p-16 lg:p-24"
           )}
           style={isTypewriterMode ? { maskImage: typewriterMask, WebkitMaskImage: typewriterMask } : {}}
