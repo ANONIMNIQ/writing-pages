@@ -75,7 +75,7 @@ const Dashboard = () => {
           <header className="flex items-start justify-between mb-16 lg:mb-24">
             <div className="flex items-center space-x-6 md:space-x-10">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-foreground shrink-0" />
-              <h1 className="text-5xl md:text-8xl font-serif font-extrabold tracking-tighter">Ideas</h1>
+              <h1 className="text-5xl md:text-8xl font-sans font-black tracking-tighter">Ideas</h1>
             </div>
           </header>
 
@@ -116,7 +116,7 @@ const Dashboard = () => {
         {/* Right Column: Published */}
         <section className="w-full lg:w-[35%] min-w-[300px] p-8 md:p-12 lg:p-24 bg-black/[0.01] dark:bg-white/[0.01] overflow-y-auto">
           <header className="flex items-center justify-between mb-12 lg:mb-24 h-10">
-            <h2 className="text-3xl md:text-4xl font-serif font-light tracking-tight text-foreground/20">Published</h2>
+            <h2 className="text-3xl md:text-4xl font-sans font-medium tracking-tight text-foreground/20">Published</h2>
           </header>
 
           <div className="space-y-1">
