@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts, Note } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Loader2 } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import FloatingExportFAB from '@/components/FloatingExportFAB';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
@@ -62,6 +62,7 @@ const Editor = () => {
   const { getDraft, updateDraft } = useDrafts();
   
   const [draftData, setDraftData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [isSaved, setIsSaved] = useState(true);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
@@ -79,6 +80,7 @@ const Editor = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const isContentInitialized = useRef(false);
+  const lastSavedContent = useRef<string>("");
 
   useEffect(() => {
     const checkRole = async () => {
@@ -108,7 +110,7 @@ const Editor = () => {
         setRevisions(data as Revision[]);
       }
     } catch (err) {
-      console.error("Failed to fetch revisions:", err);
+      console.error("[editor] failed to fetch revisions", err);
     }
   }, [id]);
 
@@ -116,13 +118,14 @@ const Editor = () => {
     if (id) fetchRevisions();
   }, [id, fetchRevisions]);
 
-  const createRevision = useCallback(async (silent = false) => {
-    if (!id || !editorRef.current) return;
+  const createRevision = useCallback(async (content: string, silent = false) => {
+    if (!id) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
+      // Only create a revision if the content actually changed since the last revision
+      if (content === lastSavedContent.current) return;
       
       const { error } = await supabase
         .from('draft_revisions')
@@ -130,27 +133,31 @@ const Editor = () => {
           draft_id: id,
           user_id: user.id,
           title: title,
-          content: currentMarkdown,
+          content: content,
           notes: notes
         });
 
       if (!error) {
+        lastSavedContent.current = content;
         fetchRevisions();
-        if (!silent) toast.success("Revision saved");
+        if (!silent) toast.success("History updated");
       }
     } catch (err) {
-      console.error("Failed to create revision:", err);
+      console.error("[editor] failed to create revision", err);
     }
   }, [id, title, notes, fetchRevisions]);
 
   const handleRestoreRevision = async (rev: Revision) => {
     if (draftData?.status === 'published') return;
     
-    const confirmRestore = window.confirm("Restore this version? Your current work will be archived as a revision.");
+    const confirmRestore = window.confirm("Restore this version? Your current work will be archived.");
     if (!confirmRestore) return;
 
-    await createRevision(true);
+    // Archive current state
+    const currentMarkdown = turndownService.turndown(editorRef.current?.innerHTML || '');
+    await createRevision(currentMarkdown, true);
 
+    // Restore
     const htmlContent = marked.parse(rev.content) as string;
     if (editorRef.current) {
       editorRef.current.innerHTML = htmlContent;
@@ -197,13 +204,16 @@ const Editor = () => {
           setDraftData(draft);
           setTitle(draft.title || '');
           setNotes(draft.notes || []);
+          lastSavedContent.current = draft.content || '';
         } else {
           toast.error("Draft not found.");
           navigate('/');
         }
       } catch (err) {
-        console.error("Error fetching draft:", err);
+        console.error("[editor] error fetching draft", err);
         navigate('/');
+      } finally {
+        setLoading(false);
       }
     };
     fetchDraft();
@@ -301,10 +311,11 @@ const Editor = () => {
         content: markdown,
         notes: notes 
       });
-      await createRevision(true);
+      // Store history snapshot
+      await createRevision(markdown, true);
       setIsSaved(true);
     } catch (error) {
-      console.error("Failed to auto-save:", error);
+      console.error("[editor] auto-save failed", error);
     }
   }, [id, title, updateDraft, notes, draftData, createRevision]);
 
@@ -519,6 +530,14 @@ const Editor = () => {
     rgba(255,255,255,0.25) 100%
   )`;
 
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary/20" />
+      </div>
+    );
+  }
+
   if (!id || !draftData) return null;
 
   const headerBgColor = draftData.status === 'published' 
@@ -577,7 +596,8 @@ const Editor = () => {
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
-              await createRevision(true);
+              // Save a revision before publishing
+              await createRevision(markdown, true);
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
               const updated = await getDraft(id);
               if (updated) setDraftData(updated);
