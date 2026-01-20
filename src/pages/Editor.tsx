@@ -214,6 +214,24 @@ const Editor = () => {
     }
   }, [id, title, notes, fetchRevisions]);
 
+  const saveContent = useCallback(async () => {
+    if (!id || !isContentInitialized.current || !draftData || draftData.status === 'published') return;
+    const currentHtml = editorRef.current?.innerHTML || '';
+    const markdown = turndownService.turndown(currentHtml);
+    try {
+      await updateDraft(id, { 
+        title: title || 'Untitled', 
+        content: markdown,
+        notes: notes 
+      });
+      setIsSaved(true);
+      toast.success("Draft saved manually.");
+    } catch (error) {
+      console.error("[editor] manual save failed", error);
+      toast.error("Failed to save draft.");
+    }
+  }, [id, title, updateDraft, notes, draftData]);
+
   const handleRestoreRevision = async (rev: Revision) => {
     if (draftData?.status === 'published') return;
     
@@ -222,6 +240,7 @@ const Editor = () => {
 
     if (editorRef.current) {
       const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
+      // Explicitly create revision of current state before overwriting
       await createRevision(currentMarkdown, true);
 
       try {
@@ -311,31 +330,6 @@ const Editor = () => {
     
     setTimeout(() => updateCaretInfo({ immediateScroll: true, allowTypewriterScroll: true }), 10);
   }, [updateCaretInfo, draftData]);
-
-  const saveContent = useCallback(async () => {
-    if (!id || !isContentInitialized.current || !draftData || draftData.status === 'published') return;
-    const currentHtml = editorRef.current?.innerHTML || '';
-    const markdown = turndownService.turndown(currentHtml);
-    try {
-      await updateDraft(id, { 
-        title: title || 'Untitled', 
-        content: markdown,
-        notes: notes 
-      });
-      await createRevision(markdown, true);
-      setIsSaved(true);
-    } catch (error) {
-      console.error("[editor] auto-save failed", error);
-    }
-  }, [id, title, updateDraft, notes, draftData, createRevision]);
-
-  useEffect(() => {
-    if (isSaved || !draftData || draftData.status === 'published') return;
-    const handler = setTimeout(() => {
-      saveContent();
-    }, 2000); 
-    return () => clearTimeout(handler);
-  }, [isSaved, saveContent, draftData]);
 
   const handleInput = () => {
     if (!draftData || draftData.status === 'published') return;
@@ -585,7 +579,7 @@ const Editor = () => {
           </Link>
           {draftData.status === 'draft' && (
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest hidden sm:inline">
-              {isSaved ? 'Saved' : 'Saving...'}
+              {isSaved ? 'Saved' : 'Unsaved Changes'}
             </span>
           )}
         </div>
@@ -602,12 +596,29 @@ const Editor = () => {
           )}
           <ThemeToggle />
           
+          {draftData.status === 'draft' && (
+            <Button 
+              onClick={saveContent}
+              disabled={isSaved}
+              variant="outline" 
+              size="sm"
+              className="rounded-full px-4 py-1 h-auto text-sm font-medium ml-2 border-primary/20 hover:bg-primary/5 gap-2"
+            >
+              {isSaved ? 'Saved' : 'Save Now'}
+            </Button>
+          )}
+
           {draftData.status === 'draft' ? (
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
-              await createRevision(markdown, true);
+              
+              // 1. Save current state to draft table
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
+              
+              // 2. Create final revision
+              await createRevision(markdown, true); 
+              
               const updated = await getDraft(id);
               if (updated) setDraftData(updated);
               toast.success("Entry published!");
