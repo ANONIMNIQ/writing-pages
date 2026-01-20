@@ -139,6 +139,9 @@ const Editor = () => {
   const updateCaretInfo = useCallback((options: { immediateScroll?: boolean; allowTypewriterScroll?: boolean } = {}) => {
     const { immediateScroll = false, allowTypewriterScroll = false } = options;
     
+    // Don't update caret info if the text is published/read-only
+    if (draftData?.status === 'published') return;
+
     requestAnimationFrame(() => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || !editorRef.current || !wrapperRef.current) return;
@@ -186,10 +189,10 @@ const Editor = () => {
         setToolbarPos(null);
       }
     });
-  }, [isTypewriterMode, isMobile]);
+  }, [isTypewriterMode, isMobile, draftData?.status]);
 
   const moveCaretToEnd = useCallback(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || draftData?.status === 'published') return;
     const el = editorRef.current;
     el.focus();
     
@@ -204,10 +207,10 @@ const Editor = () => {
     sel?.addRange(range);
     
     setTimeout(() => updateCaretInfo({ immediateScroll: true, allowTypewriterScroll: true }), 10);
-  }, [updateCaretInfo]);
+  }, [updateCaretInfo, draftData?.status]);
 
   const saveContent = useCallback(async () => {
-    if (!id || !isContentInitialized.current) return;
+    if (!id || !isContentInitialized.current || draftData?.status === 'published') return;
     const currentHtml = editorRef.current?.innerHTML || '';
     const markdown = turndownService.turndown(currentHtml);
     try {
@@ -220,17 +223,18 @@ const Editor = () => {
     } catch (error) {
       console.error("Failed to auto-save:", error);
     }
-  }, [id, title, updateDraft, notes]);
+  }, [id, title, updateDraft, notes, draftData?.status]);
 
   useEffect(() => {
-    if (isSaved) return;
+    if (isSaved || draftData?.status === 'published') return;
     const handler = setTimeout(() => {
       saveContent();
     }, 1000);
     return () => clearTimeout(handler);
-  }, [isSaved, saveContent]);
+  }, [isSaved, saveContent, draftData?.status]);
 
   const handleInput = () => {
+    if (draftData?.status === 'published') return;
     setIsSaved(false);
     updateCaretInfo({ allowTypewriterScroll: true });
     updateChapters();
@@ -238,6 +242,7 @@ const Editor = () => {
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (draftData?.status === 'published') return;
     const value = e.target.value;
     if (value.length <= MAX_TITLE_LENGTH) {
       setTitle(value);
@@ -246,6 +251,8 @@ const Editor = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (draftData?.status === 'published') return;
+    
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
@@ -313,6 +320,8 @@ const Editor = () => {
   }, [draftData]);
 
   const applyFormat = (type: string) => {
+    if (draftData?.status === 'published') return;
+    
     if (type === 'addNote') {
       const selection = window.getSelection();
       if (selection && !selection.isCollapsed) {
@@ -374,11 +383,14 @@ const Editor = () => {
   };
 
   const handleUpdateNote = (noteId: string, text: string) => {
+    if (draftData?.status === 'published') return;
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text } : n));
     setIsSaved(false);
   };
 
   const handleDeleteNote = (noteId: string) => {
+    if (draftData?.status === 'published') return;
+    
     if (editorRef.current) {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
       if (highlight) {
@@ -432,7 +444,7 @@ const Editor = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-hidden">
-      {!isTypewriterMode && !isMobile && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
+      {!isTypewriterMode && !isMobile && draftData.status === 'draft' && <TextFormattingToolbar position={toolbarPos} onFormat={applyFormat} />}
       
       <header className={cn(
         "p-4 border-b border-border/50 flex justify-between items-center z-20 backdrop-blur-sm transition-all duration-700",
@@ -459,12 +471,14 @@ const Editor = () => {
               </Badge>
             </div>
           </Link>
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest hidden sm:inline">
-            {isSaved ? 'Saved' : 'Saving...'}
-          </span>
+          {draftData.status === 'draft' && (
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest hidden sm:inline">
+              {isSaved ? 'Saved' : 'Saving...'}
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-2">
-          {!isMobile && (
+          {!isMobile && draftData.status === 'draft' && (
             <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
               setIsTypewriterMode(true);
               setTimeout(() => {
@@ -540,20 +554,26 @@ const Editor = () => {
                 <textarea
                   value={title}
                   onChange={handleTitleChange}
-                  className="w-full resize-none text-3xl md:text-5xl font-serif font-extrabold leading-tight focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden"
+                  readOnly={draftData.status === 'published'}
+                  className={cn(
+                    "w-full resize-none text-3xl md:text-5xl font-serif font-extrabold leading-tight focus:outline-none bg-transparent placeholder:text-muted/30 overflow-hidden",
+                    draftData.status === 'published' && "cursor-default"
+                  )}
                   placeholder="Title"
                   rows={1}
                 />
-                <div className="flex justify-end">
-                  <span className="text-xs text-muted-foreground/40 font-mono">
-                    {title.length}/{MAX_TITLE_LENGTH}
-                  </span>
-                </div>
+                {draftData.status === 'draft' && (
+                  <div className="flex justify-end">
+                    <span className="text-xs text-muted-foreground/40 font-mono">
+                      {title.length}/{MAX_TITLE_LENGTH}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             
             <div className="relative">
-              {!isTypewriterMode && !isMobile && plusButtonTop !== null && (
+              {!isTypewriterMode && !isMobile && plusButtonTop !== null && draftData.status === 'draft' && (
                 <div 
                   className="absolute -left-12 md:-left-16 flex items-center justify-center transition-all duration-200 ease-out opacity-20 hover:opacity-100 z-10"
                   style={{ top: `${plusButtonTop}px`, height: `${LINE_HEIGHT}px`, width: '40px' }}
@@ -566,7 +586,7 @@ const Editor = () => {
 
               <div 
                 ref={editorRef}
-                contentEditable
+                contentEditable={draftData.status === 'draft'}
                 onInput={handleInput}
                 onKeyDown={handleKeyDown}
                 onSelect={() => updateCaretInfo({ allowTypewriterScroll: true })}
@@ -576,7 +596,8 @@ const Editor = () => {
                   "editor-content w-full min-h-[60vh] focus:outline-none bg-transparent max-w-none relative z-0 pb-[70vh]",
                   isTypewriterMode 
                     ? "font-mono typewriter-active caret-[#00BFFF] leading-[32px] cursor-text pt-[40vh]" 
-                    : "font-serif caret-primary leading-[32px] cursor-text prose prose-xl prose-stone dark:prose-invert"
+                    : "font-serif caret-primary leading-[32px] cursor-text prose prose-xl prose-stone dark:prose-invert",
+                  draftData.status === 'published' && "cursor-default"
                 )}
                 style={{ lineHeight: `${LINE_HEIGHT}px` }}
                 spellCheck="false"
