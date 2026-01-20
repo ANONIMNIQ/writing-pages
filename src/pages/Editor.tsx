@@ -112,7 +112,7 @@ const Editor = () => {
     fetchRevisions();
   }, [fetchRevisions]);
 
-  const createRevision = async () => {
+  const createRevision = async (silent = false) => {
     if (!id || !editorRef.current) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -131,6 +131,7 @@ const Editor = () => {
 
     if (!error) {
       fetchRevisions();
+      if (!silent) toast.success("Revision saved");
     }
   };
 
@@ -141,7 +142,7 @@ const Editor = () => {
     if (!confirmRestore) return;
 
     // First, save current state as a revision
-    await createRevision();
+    await createRevision(true);
 
     // Then restore
     const htmlContent = marked.parse(rev.content) as string;
@@ -290,6 +291,8 @@ const Editor = () => {
         content: markdown,
         notes: notes 
       });
+      // Automatically create a revision when auto-saving
+      await createRevision(true);
       setIsSaved(true);
     } catch (error) {
       console.error("Failed to auto-save:", error);
@@ -300,7 +303,7 @@ const Editor = () => {
     if (isSaved || draftData?.status === 'published') return;
     const handler = setTimeout(() => {
       saveContent();
-    }, 1000);
+    }, 2000); // 2 seconds of inactivity before auto-saving and revisioning
     return () => clearTimeout(handler);
   }, [isSaved, saveContent, draftData?.status]);
 
@@ -568,9 +571,8 @@ const Editor = () => {
               className="rounded-full hover:bg-primary/5 text-primary"
               onClick={async () => {
                 await createRevision();
-                toast.success("Revision snapshot saved");
               }}
-              title="Save Revision Snapshot"
+              title="Manual Revision Snapshot"
             >
               <Save className="h-5 w-5" />
             </Button>
@@ -581,7 +583,7 @@ const Editor = () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
               // Save a revision before publishing
-              await createRevision();
+              await createRevision(true);
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
               const updated = await getDraft(id);
               if (updated) setDraftData(updated);
