@@ -2,8 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts, Note } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Save } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
+import FloatingExportFAB from '@/components/FloatingExportFAB';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
 import EditorSidebar from '@/components/EditorSidebar';
 import NotesSidebar from '@/components/NotesSidebar';
@@ -46,6 +47,14 @@ interface Chapter {
   level: number;
 }
 
+interface Revision {
+  id: string;
+  title: string;
+  content: string;
+  notes: any[];
+  created_at: string;
+}
+
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -61,6 +70,7 @@ const Editor = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [revisions, setRevisions] = useState<Revision[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [stats, setStats] = useState({ characters: 0, readingTime: 0 });
@@ -84,6 +94,68 @@ const Editor = () => {
     };
     checkRole();
   }, []);
+
+  const fetchRevisions = useCallback(async () => {
+    if (!id) return;
+    const { data, error } = await supabase
+      .from('draft_revisions')
+      .select('*')
+      .eq('draft_id', id)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setRevisions(data as Revision[]);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchRevisions();
+  }, [fetchRevisions]);
+
+  const createRevision = async () => {
+    if (!id || !editorRef.current) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
+    
+    const { error } = await supabase
+      .from('draft_revisions')
+      .insert({
+        draft_id: id,
+        user_id: user.id,
+        title: title,
+        content: currentMarkdown,
+        notes: notes
+      });
+
+    if (!error) {
+      fetchRevisions();
+    }
+  };
+
+  const handleRestoreRevision = async (rev: Revision) => {
+    if (draftData?.status === 'published') return;
+    
+    const confirmRestore = window.confirm("Restore this version? Your current unsaved work will be archived as a revision.");
+    if (!confirmRestore) return;
+
+    // First, save current state as a revision
+    await createRevision();
+
+    // Then restore
+    const htmlContent = marked.parse(rev.content) as string;
+    if (editorRef.current) {
+      editorRef.current.innerHTML = htmlContent;
+    }
+    setTitle(rev.title);
+    setNotes(rev.notes || []);
+    setIsSaved(false);
+    
+    toast.success("Version restored");
+    updateChapters();
+    updateStats();
+  };
 
   const updateStats = useCallback(() => {
     if (!editorRef.current) return;
@@ -139,7 +211,6 @@ const Editor = () => {
   const updateCaretInfo = useCallback((options: { immediateScroll?: boolean; allowTypewriterScroll?: boolean } = {}) => {
     const { immediateScroll = false, allowTypewriterScroll = false } = options;
     
-    // Don't update caret info if the text is published/read-only
     if (draftData?.status === 'published') return;
 
     requestAnimationFrame(() => {
@@ -489,10 +560,28 @@ const Editor = () => {
             </Button>
           )}
           <ThemeToggle />
+          
+          {draftData.status === 'draft' && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full hover:bg-primary/5 text-primary"
+              onClick={async () => {
+                await createRevision();
+                toast.success("Revision snapshot saved");
+              }}
+              title="Save Revision Snapshot"
+            >
+              <Save className="h-5 w-5" />
+            </Button>
+          )}
+
           {draftData.status === 'draft' ? (
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
+              // Save a revision before publishing
+              await createRevision();
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
               const updated = await getDraft(id);
               if (updated) setDraftData(updated);
@@ -533,6 +622,8 @@ const Editor = () => {
             chapters={chapters} 
             onChapterClick={handleChapterClick} 
             isVisible={isSidebarVisible} 
+            revisions={revisions}
+            onRestoreRevision={handleRestoreRevision}
           />
         )}
 
@@ -617,6 +708,13 @@ const Editor = () => {
           />
         )}
       </div>
+
+      {draftData.status === 'published' && (
+        <FloatingExportFAB 
+          title={title} 
+          content={editorRef.current ? turndownService.turndown(editorRef.current.innerHTML) : ''} 
+        />
+      )}
 
       <EditorStats 
         characters={stats.characters} 
