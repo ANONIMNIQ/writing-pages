@@ -97,41 +97,43 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                 <span className="text-[10px] font-bold uppercase tracking-widest">Revisions</span>
               </div>
 
-              <div className="grid grid-cols-1 gap-8">
+              <div className="space-y-6">
                 {revisions.length > 0 ? (
                   revisions.map((rev) => (
                     <div 
                       key={rev.id} 
-                      className="group flex flex-col items-center"
+                      className="group p-4 rounded-xl border border-border/40 bg-card/30 hover:bg-accent/30 transition-all cursor-pointer relative"
                     >
-                      <div 
-                        onClick={() => onRestoreRevision?.(rev)}
-                        className="relative w-full aspect-[1/1.4] bg-card border border-border/40 shadow-sm rounded-sm p-4 overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/20 transition-all origin-top group-hover:scale-[1.02]"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-card/80 z-10" />
-                        <h4 className="text-[10px] font-bold uppercase tracking-tighter mb-2 opacity-80 truncate">{rev.title}</h4>
-                        <p className="text-[8px] font-serif leading-relaxed text-muted-foreground/60 select-none">
-                          {rev.content.substring(0, 400)}...
+                      <div className="mb-3">
+                        <p className="text-xs font-serif line-clamp-3 opacity-60 italic mb-2">
+                          {rev.content.substring(0, 150)}...
                         </p>
-                        <div className="absolute bottom-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full shadow-lg">
+                        <div className="flex items-center justify-between mt-4">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase tracking-tighter text-foreground/40">
+                              {new Date(rev.created_at).toLocaleDateString()}
+                            </span>
+                            <span className="text-[10px] font-mono text-foreground/30">
+                              {new Date(rev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRestoreRevision?.(rev);
+                            }}
+                            className="p-2 rounded-full hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Restore this version"
+                          >
                             <RotateCcw size={14} />
-                          </Button>
+                          </button>
                         </div>
-                      </div>
-                      
-                      <div className="mt-3 text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-tighter text-foreground/40">
-                          {new Date(rev.created_at).toLocaleDateString()}
-                        </p>
-                        <p className="text-[9px] font-mono text-foreground/30">
-                          {new Date(rev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-muted-foreground italic opacity-50">No revisions yet. They are created automatically while you write.</p>
+                  <p className="text-xs text-muted-foreground italic opacity-50">No revisions yet. One is created every time you publish or manually save.</p>
                 )}
               </div>
             </div>

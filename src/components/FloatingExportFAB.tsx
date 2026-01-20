@@ -45,7 +45,7 @@ const FloatingExportFAB: React.FC<FloatingExportFABProps> = ({ title, content })
       <div 
         className={cn(
           "fixed inset-0 z-40 transition-all duration-300 pointer-events-none",
-          isOpen ? "bg-background/20 backdrop-blur-sm pointer-events-auto opacity-100" : "opacity-0"
+          isOpen ? "bg-background/20 backdrop-blur-md pointer-events-auto opacity-100" : "opacity-0"
         )}
         onClick={() => setIsOpen(false)}
       />
@@ -59,25 +59,25 @@ const FloatingExportFAB: React.FC<FloatingExportFABProps> = ({ title, content })
           )}
         >
           <Button 
-            variant="outline" 
-            className="rounded-full shadow-lg gap-2 px-6 h-12 border-white/20 bg-white/10 dark:bg-black/20 backdrop-blur-xl hover:bg-white/20 dark:hover:bg-black/30 transition-all"
+            variant="secondary" 
+            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-card hover:bg-accent"
             onClick={() => handleExport('txt')}
           >
             <FileText size={18} />
             <span className="text-xs font-bold uppercase tracking-widest">Plain Text (.txt)</span>
           </Button>
           <Button 
-            variant="outline" 
-            className="rounded-full shadow-lg gap-2 px-6 h-12 border-white/20 bg-white/10 dark:bg-black/20 backdrop-blur-xl hover:bg-white/20 dark:hover:bg-black/30 transition-all"
+            variant="secondary" 
+            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-card hover:bg-accent"
             onClick={() => handleExport('md')}
           >
             <FileCode size={18} />
             <span className="text-xs font-bold uppercase tracking-widest">Markdown (.md)</span>
           </Button>
           <Button 
-            variant="outline" 
-            className="rounded-full shadow-lg gap-2 px-6 h-12 border-white/10 bg-white/5 dark:bg-black/10 backdrop-blur-xl opacity-50 cursor-not-allowed"
-            disabled
+            variant="secondary" 
+            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-card hover:bg-accent opacity-50"
+            onClick={() => handleExport('pdf')}
           >
             <FileJson size={18} />
             <span className="text-xs font-bold uppercase tracking-widest">PDF (Soon)</span>
@@ -88,10 +88,8 @@ const FloatingExportFAB: React.FC<FloatingExportFABProps> = ({ title, content })
         <Button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-500 border border-white/20",
-            isOpen 
-              ? "bg-foreground text-background rotate-90 scale-110" 
-              : "bg-white/10 dark:bg-black/20 backdrop-blur-xl text-foreground hover:scale-110 hover:bg-white/20 dark:hover:bg-black/30"
+            "w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300",
+            isOpen ? "bg-foreground text-background rotate-90 scale-110" : "bg-primary text-primary-foreground hover:scale-110"
           )}
         >
           {isOpen ? <X size={28} /> : <Download size={28} />}

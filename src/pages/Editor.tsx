@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts, Note } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Loader2, Save } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Save } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import FloatingExportFAB from '@/components/FloatingExportFAB';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
@@ -62,7 +62,6 @@ const Editor = () => {
   const { getDraft, updateDraft } = useDrafts();
   
   const [draftData, setDraftData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [isSaved, setIsSaved] = useState(true);
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
@@ -80,7 +79,6 @@ const Editor = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const isContentInitialized = useRef(false);
-  const lastSavedContent = useRef<string>("");
 
   useEffect(() => {
     const checkRole = async () => {
@@ -99,24 +97,65 @@ const Editor = () => {
 
   const fetchRevisions = useCallback(async () => {
     if (!id) return;
-    try {
-      const { data, error } = await supabase
-        .from('draft_revisions')
-        .select('*')
-        .eq('draft_id', id)
-        .order('created_at', { ascending: false });
-      
-      if (!error && data) {
-        setRevisions(data as Revision[]);
-      }
-    } catch (err) {
-      console.error("[editor] failed to fetch revisions", err);
+    const { data, error } = await supabase
+      .from('draft_revisions')
+      .select('*')
+      .eq('draft_id', id)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setRevisions(data as Revision[]);
     }
   }, [id]);
 
   useEffect(() => {
-    if (id) fetchRevisions();
-  }, [id, fetchRevisions]);
+    fetchRevisions();
+  }, [fetchRevisions]);
+
+  const createRevision = async () => {
+    if (!id || !editorRef.current) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
+    
+    const { error } = await supabase
+      .from('draft_revisions')
+      .insert({
+        draft_id: id,
+        user_id: user.id,
+        title: title,
+        content: currentMarkdown,
+        notes: notes
+      });
+
+    if (!error) {
+      fetchRevisions();
+    }
+  };
+
+  const handleRestoreRevision = async (rev: Revision) => {
+    if (draftData?.status === 'published') return;
+    
+    const confirmRestore = window.confirm("Restore this version? Your current unsaved work will be archived as a revision.");
+    if (!confirmRestore) return;
+
+    // First, save current state as a revision
+    await createRevision();
+
+    // Then restore
+    const htmlContent = marked.parse(rev.content) as string;
+    if (editorRef.current) {
+      editorRef.current.innerHTML = htmlContent;
+    }
+    setTitle(rev.title);
+    setNotes(rev.notes || []);
+    setIsSaved(false);
+    
+    toast.success("Version restored");
+    updateChapters();
+    updateStats();
+  };
 
   const updateStats = useCallback(() => {
     if (!editorRef.current) return;
@@ -142,137 +181,37 @@ const Editor = () => {
     setChapters(newChapters);
   }, []);
 
-  // Initialize data
   useEffect(() => {
-    let isMounted = true;
     const fetchDraft = async () => {
-      if (!id) return;
-      try {
+      if (id) {
         const draft = await getDraft(id);
-        if (isMounted) {
-          if (draft) {
-            setDraftData(draft);
-            setTitle(draft.title || '');
-            setNotes(draft.notes || []);
-            lastSavedContent.current = draft.content || '';
-          } else {
-            toast.error("Draft not found.");
-            navigate('/');
-          }
+        if (draft) {
+          setDraftData(draft);
+          setTitle(draft.title || '');
+          setNotes(draft.notes || []);
+        } else {
+          navigate('/');
+          toast.error("Draft not found.");
         }
-      } catch (err) {
-        console.error("[editor] error fetching draft", err);
-        if (isMounted) navigate('/');
-      } finally {
-        if (isMounted) setLoading(false);
       }
     };
     fetchDraft();
-    return () => { isMounted = false; };
   }, [id, getDraft, navigate]);
 
-  // Inject content once
   useEffect(() => {
     if (draftData && editorRef.current && !isContentInitialized.current) {
-      try {
-        const htmlContent = marked.parse(draftData.content || '') as string;
-        editorRef.current.innerHTML = htmlContent;
-        isContentInitialized.current = true;
-        updateChapters();
-        updateStats();
-      } catch (err) {
-        console.error("[editor] marked parsing failed", err);
-      }
+      const htmlContent = marked.parse(draftData.content || '') as string;
+      editorRef.current.innerHTML = htmlContent;
+      isContentInitialized.current = true;
+      updateChapters();
+      updateStats();
     }
   }, [draftData, updateChapters, updateStats]);
-
-  const createRevision = useCallback(async (content: string, silent = false) => {
-    if (!id) return;
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('draft_revisions')
-        .insert({
-          draft_id: id,
-          user_id: user.id,
-          title: title,
-          content: content,
-          notes: notes
-        });
-
-      if (!error) {
-        fetchRevisions();
-        if (!silent) toast.success("Checkpoint saved to history.");
-      }
-    } catch (err) {
-      console.error("[editor] failed to create revision", err);
-    }
-  }, [id, title, notes, fetchRevisions]);
-
-  const saveContent = useCallback(async () => {
-    if (!id || !isContentInitialized.current || !draftData || draftData.status === 'published') return;
-    const currentHtml = editorRef.current?.innerHTML || '';
-    const markdown = turndownService.turndown(currentHtml);
-    try {
-      await updateDraft(id, { 
-        title: title || 'Untitled', 
-        content: markdown,
-        notes: notes 
-      });
-      setIsSaved(true);
-    } catch (error) {
-      console.error("[editor] auto-save failed", error);
-    }
-  }, [id, title, updateDraft, notes, draftData]);
-
-  // AUTO-SAVE TIMER (Drafts only)
-  useEffect(() => {
-    if (isSaved || !draftData || draftData.status === 'published') return;
-    const handler = setTimeout(() => {
-      saveContent();
-    }, 2000); 
-    return () => clearTimeout(handler);
-  }, [isSaved, saveContent, draftData]);
-
-  const handleManualCheckpoint = async () => {
-    if (!editorRef.current) return;
-    const markdown = turndownService.turndown(editorRef.current.innerHTML);
-    await createRevision(markdown);
-  };
-
-  const handleRestoreRevision = async (rev: Revision) => {
-    if (draftData?.status === 'published') return;
-    
-    const confirmRestore = window.confirm("Restore this version? Your current work will be archived.");
-    if (!confirmRestore) return;
-
-    if (editorRef.current) {
-      const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
-      // Explicitly create revision of current state before overwriting
-      await createRevision(currentMarkdown, true);
-
-      try {
-        const htmlContent = marked.parse(rev.content) as string;
-        editorRef.current.innerHTML = htmlContent;
-        setTitle(rev.title);
-        setNotes(rev.notes || []);
-        setIsSaved(false);
-        toast.success("Version restored");
-        updateChapters();
-        updateStats();
-      } catch (err) {
-        console.error("[editor] restore failed", err);
-        toast.error("Failed to restore revision");
-      }
-    }
-  };
 
   const updateCaretInfo = useCallback((options: { immediateScroll?: boolean; allowTypewriterScroll?: boolean } = {}) => {
     const { immediateScroll = false, allowTypewriterScroll = false } = options;
     
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
 
     requestAnimationFrame(() => {
       const selection = window.getSelection();
@@ -321,10 +260,10 @@ const Editor = () => {
         setToolbarPos(null);
       }
     });
-  }, [isTypewriterMode, isMobile, draftData]);
+  }, [isTypewriterMode, isMobile, draftData?.status]);
 
   const moveCaretToEnd = useCallback(() => {
-    if (!editorRef.current || !draftData || draftData.status === 'published') return;
+    if (!editorRef.current || draftData?.status === 'published') return;
     const el = editorRef.current;
     el.focus();
     
@@ -339,10 +278,34 @@ const Editor = () => {
     sel?.addRange(range);
     
     setTimeout(() => updateCaretInfo({ immediateScroll: true, allowTypewriterScroll: true }), 10);
-  }, [updateCaretInfo, draftData]);
+  }, [updateCaretInfo, draftData?.status]);
+
+  const saveContent = useCallback(async () => {
+    if (!id || !isContentInitialized.current || draftData?.status === 'published') return;
+    const currentHtml = editorRef.current?.innerHTML || '';
+    const markdown = turndownService.turndown(currentHtml);
+    try {
+      await updateDraft(id, { 
+        title: title || 'Untitled', 
+        content: markdown,
+        notes: notes 
+      });
+      setIsSaved(true);
+    } catch (error) {
+      console.error("Failed to auto-save:", error);
+    }
+  }, [id, title, updateDraft, notes, draftData?.status]);
+
+  useEffect(() => {
+    if (isSaved || draftData?.status === 'published') return;
+    const handler = setTimeout(() => {
+      saveContent();
+    }, 1000);
+    return () => clearTimeout(handler);
+  }, [isSaved, saveContent, draftData?.status]);
 
   const handleInput = () => {
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
     setIsSaved(false);
     updateCaretInfo({ allowTypewriterScroll: true });
     updateChapters();
@@ -350,7 +313,7 @@ const Editor = () => {
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
     const value = e.target.value;
     if (value.length <= MAX_TITLE_LENGTH) {
       setTitle(value);
@@ -359,7 +322,7 @@ const Editor = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
     
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
@@ -428,7 +391,7 @@ const Editor = () => {
   }, [draftData]);
 
   const applyFormat = (type: string) => {
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
     
     if (type === 'addNote') {
       const selection = window.getSelection();
@@ -491,13 +454,13 @@ const Editor = () => {
   };
 
   const handleUpdateNote = (noteId: string, text: string) => {
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text } : n));
     setIsSaved(false);
   };
 
   const handleDeleteNote = (noteId: string) => {
-    if (!draftData || draftData.status === 'published') return;
+    if (draftData?.status === 'published') return;
     
     if (editorRef.current) {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
@@ -544,14 +507,6 @@ const Editor = () => {
     rgba(255,255,255,0.25) 100%
   )`;
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary/20" />
-      </div>
-    );
-  }
-
   if (!id || !draftData) return null;
 
   const headerBgColor = draftData.status === 'published' 
@@ -589,46 +544,45 @@ const Editor = () => {
           </Link>
           {draftData.status === 'draft' && (
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest hidden sm:inline">
-              {isSaved ? 'Saved' : 'Auto-saving...'}
+              {isSaved ? 'Saved' : 'Saving...'}
             </span>
           )}
         </div>
         <div className="flex items-center space-x-2">
           {!isMobile && draftData.status === 'draft' && (
-            <>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="rounded-full px-4 gap-2 hover:bg-primary/5 text-primary/60 hover:text-primary transition-colors" 
-                onClick={handleManualCheckpoint}
-                title="Save Checkpoint to History"
-              >
-                <Save className="h-4 w-4" />
-                <span className="text-[10px] font-bold uppercase tracking-widest hidden md:inline">Checkpoint</span>
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
-                setIsTypewriterMode(true);
-                setTimeout(() => {
-                  moveCaretToEnd();
-                }, 100);
-              }} title="Typewriter Mode">
-                <Keyboard className="h-5 w-5" />
-              </Button>
-            </>
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
+              setIsTypewriterMode(true);
+              setTimeout(() => {
+                moveCaretToEnd();
+              }, 100);
+            }} title="Typewriter Mode">
+              <Keyboard className="h-5 w-5" />
+            </Button>
           )}
           <ThemeToggle />
           
+          {draftData.status === 'draft' && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full hover:bg-primary/5 text-primary"
+              onClick={async () => {
+                await createRevision();
+                toast.success("Revision snapshot saved");
+              }}
+              title="Save Revision Snapshot"
+            >
+              <Save className="h-5 w-5" />
+            </Button>
+          )}
+
           {draftData.status === 'draft' ? (
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
-              
-              // 1. Save final revision before publishing
-              await createRevision(markdown, true); 
-              
-              // 2. Save current state to draft table
+              // Save a revision before publishing
+              await createRevision();
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
-              
               const updated = await getDraft(id);
               if (updated) setDraftData(updated);
               toast.success("Entry published!");
