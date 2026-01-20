@@ -135,15 +135,14 @@ const Editor = () => {
   };
 
   const handleRestoreRevision = async (rev: Revision) => {
-    if (draftData?.status === 'published') return;
-    
+    // Allow restoring even if published, but confirm first.
     const confirmRestore = window.confirm("Restore this version? Your current unsaved work will be archived as a revision.");
     if (!confirmRestore) return;
 
-    // First, save current state as a revision
+    // First, save current state as a revision (if it's a draft or published)
     await createRevision();
 
-    // Then restore
+    // Then restore the content and set status back to 'draft'
     const htmlContent = marked.parse(rev.content) as string;
     if (editorRef.current) {
       editorRef.current.innerHTML = htmlContent;
@@ -152,7 +151,19 @@ const Editor = () => {
     setNotes(rev.notes || []);
     setIsSaved(false);
     
-    toast.success("Version restored");
+    // Update the draft in the database, setting status back to 'draft'
+    await updateDraft(id!, { 
+      title: rev.title, 
+      content: rev.content, 
+      notes: rev.notes, 
+      status: 'draft' 
+    });
+
+    // Refresh local state to reflect the change
+    const updated = await getDraft(id!);
+    if (updated) setDraftData(updated);
+
+    toast.success("Version restored and reverted to draft.");
     updateChapters();
     updateStats();
   };
