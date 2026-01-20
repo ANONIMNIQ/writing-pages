@@ -113,8 +113,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                       >
                         <div className="absolute inset-0 p-4 text-xs font-serif overflow-hidden">
                           <p className="font-bold text-sm mb-2 line-clamp-1">{rev.title || 'Untitled Revision'}</p>
-                          <p className="line-clamp-[10] opacity-60 italic">
-                            {rev.content.substring(0, 300)}...
+                          <p className="opacity-60 italic">
+                            {rev.content.substring(0, 600)}...
                           </p>
                         </div>
                       </div>
