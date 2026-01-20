@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts, Note } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Loader2 } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Loader2, Save } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import FloatingExportFAB from '@/components/FloatingExportFAB';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
@@ -192,8 +192,6 @@ const Editor = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      if (content === lastSavedContent.current) return;
-      
       const { error } = await supabase
         .from('draft_revisions')
         .insert({
@@ -205,9 +203,8 @@ const Editor = () => {
         });
 
       if (!error) {
-        lastSavedContent.current = content;
         fetchRevisions();
-        if (!silent) toast.success("History updated");
+        if (!silent) toast.success("Checkpoint saved to history.");
       }
     } catch (err) {
       console.error("[editor] failed to create revision", err);
@@ -225,12 +222,25 @@ const Editor = () => {
         notes: notes 
       });
       setIsSaved(true);
-      toast.success("Draft saved manually.");
     } catch (error) {
-      console.error("[editor] manual save failed", error);
-      toast.error("Failed to save draft.");
+      console.error("[editor] auto-save failed", error);
     }
   }, [id, title, updateDraft, notes, draftData]);
+
+  // AUTO-SAVE TIMER (Drafts only)
+  useEffect(() => {
+    if (isSaved || !draftData || draftData.status === 'published') return;
+    const handler = setTimeout(() => {
+      saveContent();
+    }, 2000); 
+    return () => clearTimeout(handler);
+  }, [isSaved, saveContent, draftData]);
+
+  const handleManualCheckpoint = async () => {
+    if (!editorRef.current) return;
+    const markdown = turndownService.turndown(editorRef.current.innerHTML);
+    await createRevision(markdown);
+  };
 
   const handleRestoreRevision = async (rev: Revision) => {
     if (draftData?.status === 'published') return;
@@ -579,45 +589,45 @@ const Editor = () => {
           </Link>
           {draftData.status === 'draft' && (
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest hidden sm:inline">
-              {isSaved ? 'Saved' : 'Unsaved Changes'}
+              {isSaved ? 'Saved' : 'Auto-saving...'}
             </span>
           )}
         </div>
         <div className="flex items-center space-x-2">
           {!isMobile && draftData.status === 'draft' && (
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
-              setIsTypewriterMode(true);
-              setTimeout(() => {
-                moveCaretToEnd();
-              }, 100);
-            }} title="Typewriter Mode">
-              <Keyboard className="h-5 w-5" />
-            </Button>
+            <>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="rounded-full px-4 gap-2 hover:bg-primary/5 text-primary/60 hover:text-primary transition-colors" 
+                onClick={handleManualCheckpoint}
+                title="Save Checkpoint to History"
+              >
+                <Save className="h-4 w-4" />
+                <span className="text-[10px] font-bold uppercase tracking-widest hidden md:inline">Checkpoint</span>
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => {
+                setIsTypewriterMode(true);
+                setTimeout(() => {
+                  moveCaretToEnd();
+                }, 100);
+              }} title="Typewriter Mode">
+                <Keyboard className="h-5 w-5" />
+              </Button>
+            </>
           )}
           <ThemeToggle />
           
-          {draftData.status === 'draft' && (
-            <Button 
-              onClick={saveContent}
-              disabled={isSaved}
-              variant="outline" 
-              size="sm"
-              className="rounded-full px-4 py-1 h-auto text-sm font-medium ml-2 border-primary/20 hover:bg-primary/5 gap-2"
-            >
-              {isSaved ? 'Saved' : 'Save Now'}
-            </Button>
-          )}
-
           {draftData.status === 'draft' ? (
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
               
-              // 1. Save current state to draft table
-              await updateDraft(id, { title, content: markdown, status: 'published', notes });
-              
-              // 2. Create final revision
+              // 1. Save final revision before publishing
               await createRevision(markdown, true); 
+              
+              // 2. Save current state to draft table
+              await updateDraft(id, { title, content: markdown, status: 'published', notes });
               
               const updated = await getDraft(id);
               if (updated) setDraftData(updated);
