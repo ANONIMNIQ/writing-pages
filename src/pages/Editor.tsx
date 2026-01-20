@@ -157,6 +157,22 @@ const Editor = () => {
     updateStats();
   };
 
+  const handleDeleteRevision = useCallback(async (revisionId: string) => {
+    if (!window.confirm("Are you sure you want to delete this revision? This cannot be undone.")) return;
+
+    const { error } = await supabase
+      .from('draft_revisions')
+      .delete()
+      .eq('id', revisionId);
+
+    if (error) {
+      toast.error("Failed to delete revision.");
+    } else {
+      toast.success("Revision deleted.");
+      fetchRevisions(); // Refresh the list
+    }
+  }, [fetchRevisions]);
+
   const updateStats = useCallback(() => {
     if (!editorRef.current) return;
     const text = editorRef.current.innerText || "";
@@ -624,6 +640,7 @@ const Editor = () => {
             isVisible={isSidebarVisible} 
             revisions={revisions}
             onRestoreRevision={handleRestoreRevision}
+            onDeleteRevision={handleDeleteRevision}
           />
         )}
 

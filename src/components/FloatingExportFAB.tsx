@@ -60,7 +60,7 @@ const FloatingExportFAB: React.FC<FloatingExportFABProps> = ({ title, content })
         >
           <Button 
             variant="secondary" 
-            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-card hover:bg-accent"
+            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-background/70 backdrop-blur-lg hover:bg-accent/80"
             onClick={() => handleExport('txt')}
           >
             <FileText size={18} />
@@ -68,7 +68,7 @@ const FloatingExportFAB: React.FC<FloatingExportFABProps> = ({ title, content })
           </Button>
           <Button 
             variant="secondary" 
-            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-card hover:bg-accent"
+            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-background/70 backdrop-blur-lg hover:bg-accent/80"
             onClick={() => handleExport('md')}
           >
             <FileCode size={18} />
@@ -76,7 +76,7 @@ const FloatingExportFAB: React.FC<FloatingExportFABProps> = ({ title, content })
           </Button>
           <Button 
             variant="secondary" 
-            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-card hover:bg-accent opacity-50"
+            className="rounded-full shadow-lg gap-2 px-6 h-12 border bg-background/70 backdrop-blur-lg hover:bg-accent/80 opacity-50"
             onClick={() => handleExport('pdf')}
           >
             <FileJson size={18} />

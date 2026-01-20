@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ChevronRight, History, RotateCcw } from 'lucide-react';
+import { BookOpen, ChevronRight, History, RotateCcw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,6 +23,7 @@ interface EditorSidebarProps {
   isVisible: boolean;
   revisions?: Revision[];
   onRestoreRevision?: (revision: Revision) => void;
+  onDeleteRevision?: (id: string) => void;
 }
 
 const EditorSidebar: React.FC<EditorSidebarProps> = ({ 
@@ -30,7 +31,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onChapterClick, 
   isVisible,
   revisions = [],
-  onRestoreRevision
+  onRestoreRevision,
+  onDeleteRevision
 }) => {
   if (!isVisible) return null;
 
@@ -102,31 +104,49 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   revisions.map((rev) => (
                     <div 
                       key={rev.id} 
-                      className="group p-4 rounded-xl border border-border/40 bg-card/30 hover:bg-accent/30 transition-all cursor-pointer relative"
+                      className="group w-full relative cursor-pointer transition-all"
+                      onClick={() => onRestoreRevision?.(rev)}
                     >
-                      <div className="mb-3">
-                        <p className="text-xs font-serif line-clamp-3 opacity-60 italic mb-2">
-                          {rev.content.substring(0, 150)}...
-                        </p>
-                        <div className="flex items-center justify-between mt-4">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-tighter text-foreground/40">
-                              {new Date(rev.created_at).toLocaleDateString()}
-                            </span>
-                            <span className="text-[10px] font-mono text-foreground/30">
-                              {new Date(rev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                          
+                      {/* A4 Aspect Ratio Container (1:1.414) */}
+                      <div className="relative w-full pt-[141.4%] rounded-xl border border-border/40 bg-card/30 hover:bg-accent/30 transition-all overflow-hidden shadow-lg">
+                        <div className="absolute inset-0 p-4 text-xs font-serif overflow-hidden">
+                          <p className="font-bold text-sm mb-2 line-clamp-1">{rev.title || 'Untitled Revision'}</p>
+                          <p className="line-clamp-[10] opacity-60 italic">
+                            {rev.content.substring(0, 300)}...
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-2 px-1">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold uppercase tracking-tighter text-foreground/40">
+                            {new Date(rev.created_at).toLocaleDateString()}
+                          </span>
+                          <span className="text-[10px] font-mono text-foreground/30">
+                            {new Date(rev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onRestoreRevision?.(rev);
                             }}
-                            className="p-2 rounded-full hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="p-2 rounded-full hover:bg-primary/10 text-primary"
                             title="Restore this version"
                           >
                             <RotateCcw size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteRevision?.(rev.id);
+                            }}
+                            className="p-2 rounded-full hover:bg-destructive/10 text-destructive"
+                            title="Delete revision"
+                          >
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
