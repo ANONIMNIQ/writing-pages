@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDrafts, Note } from '@/hooks/use-drafts';
 import { Button } from '@/components/ui/button';
-import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw, Save } from 'lucide-react';
+import { Keyboard, ChevronLeft, Plus, Menu, RotateCcw } from 'lucide-react';
 import ExportOptions from '@/components/ExportOptions';
 import FloatingExportFAB from '@/components/FloatingExportFAB';
 import TextFormattingToolbar from '@/components/TextFormattingToolbar';
@@ -303,7 +303,7 @@ const Editor = () => {
     if (isSaved || draftData?.status === 'published') return;
     const handler = setTimeout(() => {
       saveContent();
-    }, 2000); // 2 seconds of inactivity before auto-saving and revisioning
+    }, 2000); 
     return () => clearTimeout(handler);
   }, [isSaved, saveContent, draftData?.status]);
 
@@ -564,20 +564,6 @@ const Editor = () => {
           )}
           <ThemeToggle />
           
-          {draftData.status === 'draft' && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full hover:bg-primary/5 text-primary"
-              onClick={async () => {
-                await createRevision();
-              }}
-              title="Manual Revision Snapshot"
-            >
-              <Save className="h-5 w-5" />
-            </Button>
-          )}
-
           {draftData.status === 'draft' ? (
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
