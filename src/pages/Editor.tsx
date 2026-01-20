@@ -97,54 +97,60 @@ const Editor = () => {
 
   const fetchRevisions = useCallback(async () => {
     if (!id) return;
-    const { data, error } = await supabase
-      .from('draft_revisions')
-      .select('*')
-      .eq('draft_id', id)
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setRevisions(data as Revision[]);
+    try {
+      const { data, error } = await supabase
+        .from('draft_revisions')
+        .select('*')
+        .eq('draft_id', id)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        setRevisions(data as Revision[]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch revisions:", err);
     }
   }, [id]);
 
   useEffect(() => {
-    fetchRevisions();
-  }, [fetchRevisions]);
+    if (id) fetchRevisions();
+  }, [id, fetchRevisions]);
 
-  const createRevision = async (silent = false) => {
+  const createRevision = useCallback(async (silent = false) => {
     if (!id || !editorRef.current) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
-    
-    const { error } = await supabase
-      .from('draft_revisions')
-      .insert({
-        draft_id: id,
-        user_id: user.id,
-        title: title,
-        content: currentMarkdown,
-        notes: notes
-      });
+      const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
+      
+      const { error } = await supabase
+        .from('draft_revisions')
+        .insert({
+          draft_id: id,
+          user_id: user.id,
+          title: title,
+          content: currentMarkdown,
+          notes: notes
+        });
 
-    if (!error) {
-      fetchRevisions();
-      if (!silent) toast.success("Revision saved");
+      if (!error) {
+        fetchRevisions();
+        if (!silent) toast.success("Revision saved");
+      }
+    } catch (err) {
+      console.error("Failed to create revision:", err);
     }
-  };
+  }, [id, title, notes, fetchRevisions]);
 
   const handleRestoreRevision = async (rev: Revision) => {
     if (draftData?.status === 'published') return;
     
-    const confirmRestore = window.confirm("Restore this version? Your current unsaved work will be archived as a revision.");
+    const confirmRestore = window.confirm("Restore this version? Your current work will be archived as a revision.");
     if (!confirmRestore) return;
 
-    // First, save current state as a revision
     await createRevision(true);
 
-    // Then restore
     const htmlContent = marked.parse(rev.content) as string;
     if (editorRef.current) {
       editorRef.current.innerHTML = htmlContent;
@@ -184,16 +190,20 @@ const Editor = () => {
 
   useEffect(() => {
     const fetchDraft = async () => {
-      if (id) {
+      if (!id) return;
+      try {
         const draft = await getDraft(id);
         if (draft) {
           setDraftData(draft);
           setTitle(draft.title || '');
           setNotes(draft.notes || []);
         } else {
-          navigate('/');
           toast.error("Draft not found.");
+          navigate('/');
         }
+      } catch (err) {
+        console.error("Error fetching draft:", err);
+        navigate('/');
       }
     };
     fetchDraft();
@@ -212,7 +222,7 @@ const Editor = () => {
   const updateCaretInfo = useCallback((options: { immediateScroll?: boolean; allowTypewriterScroll?: boolean } = {}) => {
     const { immediateScroll = false, allowTypewriterScroll = false } = options;
     
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
 
     requestAnimationFrame(() => {
       const selection = window.getSelection();
@@ -261,10 +271,10 @@ const Editor = () => {
         setToolbarPos(null);
       }
     });
-  }, [isTypewriterMode, isMobile, draftData?.status]);
+  }, [isTypewriterMode, isMobile, draftData]);
 
   const moveCaretToEnd = useCallback(() => {
-    if (!editorRef.current || draftData?.status === 'published') return;
+    if (!editorRef.current || !draftData || draftData.status === 'published') return;
     const el = editorRef.current;
     el.focus();
     
@@ -279,10 +289,10 @@ const Editor = () => {
     sel?.addRange(range);
     
     setTimeout(() => updateCaretInfo({ immediateScroll: true, allowTypewriterScroll: true }), 10);
-  }, [updateCaretInfo, draftData?.status]);
+  }, [updateCaretInfo, draftData]);
 
   const saveContent = useCallback(async () => {
-    if (!id || !isContentInitialized.current || draftData?.status === 'published') return;
+    if (!id || !isContentInitialized.current || !draftData || draftData.status === 'published') return;
     const currentHtml = editorRef.current?.innerHTML || '';
     const markdown = turndownService.turndown(currentHtml);
     try {
@@ -291,24 +301,23 @@ const Editor = () => {
         content: markdown,
         notes: notes 
       });
-      // Automatically create a revision when auto-saving
       await createRevision(true);
       setIsSaved(true);
     } catch (error) {
       console.error("Failed to auto-save:", error);
     }
-  }, [id, title, updateDraft, notes, draftData?.status]);
+  }, [id, title, updateDraft, notes, draftData, createRevision]);
 
   useEffect(() => {
-    if (isSaved || draftData?.status === 'published') return;
+    if (isSaved || !draftData || draftData.status === 'published') return;
     const handler = setTimeout(() => {
       saveContent();
     }, 2000); 
     return () => clearTimeout(handler);
-  }, [isSaved, saveContent, draftData?.status]);
+  }, [isSaved, saveContent, draftData]);
 
   const handleInput = () => {
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
     setIsSaved(false);
     updateCaretInfo({ allowTypewriterScroll: true });
     updateChapters();
@@ -316,7 +325,7 @@ const Editor = () => {
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
     const value = e.target.value;
     if (value.length <= MAX_TITLE_LENGTH) {
       setTitle(value);
@@ -325,7 +334,7 @@ const Editor = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
     
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
@@ -394,7 +403,7 @@ const Editor = () => {
   }, [draftData]);
 
   const applyFormat = (type: string) => {
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
     
     if (type === 'addNote') {
       const selection = window.getSelection();
@@ -457,13 +466,13 @@ const Editor = () => {
   };
 
   const handleUpdateNote = (noteId: string, text: string) => {
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text } : n));
     setIsSaved(false);
   };
 
   const handleDeleteNote = (noteId: string) => {
-    if (draftData?.status === 'published') return;
+    if (!draftData || draftData.status === 'published') return;
     
     if (editorRef.current) {
       const highlight = editorRef.current.querySelector(`.note-highlight[data-note-id="${noteId}"]`);
@@ -568,7 +577,6 @@ const Editor = () => {
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
-              // Save a revision before publishing
               await createRevision(true);
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
               const updated = await getDraft(id);
