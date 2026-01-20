@@ -95,6 +95,57 @@ const Editor = () => {
     checkRole();
   }, []);
 
+  // Real-time synchronization
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`draft-updates-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'drafts',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const newData = payload.new;
+          
+          // Update title if it changed and we're not currently focused on it
+          if (newData.title !== title && document.activeElement?.tagName !== 'TEXTAREA') {
+            setTitle(newData.title || '');
+          }
+
+          // Update notes
+          if (JSON.stringify(newData.notes) !== JSON.stringify(notes)) {
+            setNotes(newData.notes || []);
+          }
+
+          // Update editor content if it's different and user isn't actively typing
+          // This is a simple "last write wins" sync for now
+          if (editorRef.current && document.activeElement !== editorRef.current) {
+            const incomingHtml = marked.parse(newData.content || '') as string;
+            if (editorRef.current.innerHTML !== incomingHtml) {
+              editorRef.current.innerHTML = incomingHtml;
+              updateChapters();
+              updateStats();
+            }
+          }
+
+          // Update status
+          if (newData.status !== draftData?.status) {
+            setDraftData((prev: any) => ({ ...prev, status: newData.status }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, title, notes, draftData?.status]);
+
   const fetchRevisions = useCallback(async () => {
     if (!id) return;
     const { data, error } = await supabase
@@ -135,14 +186,11 @@ const Editor = () => {
   };
 
   const handleRestoreRevision = async (rev: Revision) => {
-    // Allow restoring even if published, but confirm first.
     const confirmRestore = window.confirm("Restore this version? Your current unsaved work will be archived as a revision.");
     if (!confirmRestore) return;
 
-    // First, save current state as a revision (if it's a draft or published)
     await createRevision();
 
-    // Then restore the content and set status back to 'draft'
     const htmlContent = marked.parse(rev.content) as string;
     if (editorRef.current) {
       editorRef.current.innerHTML = htmlContent;
@@ -151,7 +199,6 @@ const Editor = () => {
     setNotes(rev.notes || []);
     setIsSaved(false);
     
-    // Update the draft in the database, setting status back to 'draft'
     await updateDraft(id!, { 
       title: rev.title, 
       content: rev.content, 
@@ -159,7 +206,6 @@ const Editor = () => {
       status: 'draft' 
     });
 
-    // Refresh local state to reflect the change
     const updated = await getDraft(id!);
     if (updated) setDraftData(updated);
 
@@ -180,7 +226,7 @@ const Editor = () => {
       toast.error("Failed to delete revision.");
     } else {
       toast.success("Revision deleted.");
-      fetchRevisions(); // Refresh the list
+      fetchRevisions();
     }
   }, [fetchRevisions]);
 
@@ -607,7 +653,6 @@ const Editor = () => {
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
-              // Save a revision before publishing
               await createRevision();
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
               const updated = await getDraft(id);
