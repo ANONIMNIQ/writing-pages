@@ -104,11 +104,13 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   revisions.map((rev) => (
                     <div 
                       key={rev.id} 
-                      className="group w-full relative cursor-pointer transition-all"
-                      onClick={() => onRestoreRevision?.(rev)}
+                      className="group w-full relative transition-all"
                     >
                       {/* A4 Aspect Ratio Container (1:1.414) */}
-                      <div className="relative w-full pt-[141.4%] rounded-xl border border-border/40 bg-card/30 hover:bg-accent/30 transition-all overflow-hidden shadow-lg">
+                      <div 
+                        className="relative w-full pt-[141.4%] rounded-xl border border-border/40 bg-card/30 hover:bg-accent/30 transition-all overflow-hidden shadow-lg cursor-pointer"
+                        onClick={() => onRestoreRevision?.(rev)}
+                      >
                         <div className="absolute inset-0 p-4 text-xs font-serif overflow-hidden">
                           <p className="font-bold text-sm mb-2 line-clamp-1">{rev.title || 'Untitled Revision'}</p>
                           <p className="line-clamp-[10] opacity-60 italic">
