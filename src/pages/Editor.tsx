@@ -118,13 +118,80 @@ const Editor = () => {
     if (id) fetchRevisions();
   }, [id, fetchRevisions]);
 
+  const updateStats = useCallback(() => {
+    if (!editorRef.current) return;
+    const text = editorRef.current.innerText || "";
+    const characters = text.length;
+    const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+    const readingTime = Math.ceil(words / 200) || 1; 
+    setStats({ characters, readingTime });
+  }, []);
+
+  const updateChapters = useCallback(() => {
+    if (!editorRef.current) return;
+    const headers = editorRef.current.querySelectorAll('h1, h2');
+    const newChapters: Chapter[] = Array.from(headers).map((header, index) => {
+      const id = `chapter-${index}`;
+      header.id = id;
+      return {
+        id,
+        text: (header as HTMLElement).innerText || 'Untitled Section',
+        level: header.tagName === 'H1' ? 1 : 2
+      };
+    });
+    setChapters(newChapters);
+  }, []);
+
+  // Initialize data
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDraft = async () => {
+      if (!id) return;
+      try {
+        const draft = await getDraft(id);
+        if (isMounted) {
+          if (draft) {
+            setDraftData(draft);
+            setTitle(draft.title || '');
+            setNotes(draft.notes || []);
+            lastSavedContent.current = draft.content || '';
+          } else {
+            toast.error("Draft not found.");
+            navigate('/');
+          }
+        }
+      } catch (err) {
+        console.error("[editor] error fetching draft", err);
+        if (isMounted) navigate('/');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchDraft();
+    return () => { isMounted = false; };
+  }, [id, getDraft, navigate]);
+
+  // Inject content once
+  useEffect(() => {
+    if (draftData && editorRef.current && !isContentInitialized.current) {
+      try {
+        const htmlContent = marked.parse(draftData.content || '') as string;
+        editorRef.current.innerHTML = htmlContent;
+        isContentInitialized.current = true;
+        updateChapters();
+        updateStats();
+      } catch (err) {
+        console.error("[editor] marked parsing failed", err);
+      }
+    }
+  }, [draftData, updateChapters, updateStats]);
+
   const createRevision = useCallback(async (content: string, silent = false) => {
     if (!id) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Only create a revision if the content actually changed since the last revision
       if (content === lastSavedContent.current) return;
       
       const { error } = await supabase
@@ -153,81 +220,25 @@ const Editor = () => {
     const confirmRestore = window.confirm("Restore this version? Your current work will be archived.");
     if (!confirmRestore) return;
 
-    // Archive current state
-    const currentMarkdown = turndownService.turndown(editorRef.current?.innerHTML || '');
-    await createRevision(currentMarkdown, true);
-
-    // Restore
-    const htmlContent = marked.parse(rev.content) as string;
     if (editorRef.current) {
-      editorRef.current.innerHTML = htmlContent;
-    }
-    setTitle(rev.title);
-    setNotes(rev.notes || []);
-    setIsSaved(false);
-    
-    toast.success("Version restored");
-    updateChapters();
-    updateStats();
-  };
+      const currentMarkdown = turndownService.turndown(editorRef.current.innerHTML);
+      await createRevision(currentMarkdown, true);
 
-  const updateStats = useCallback(() => {
-    if (!editorRef.current) return;
-    const text = editorRef.current.innerText || "";
-    const characters = text.length;
-    const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
-    const readingTime = Math.ceil(words / 200) || 1; 
-    setStats({ characters, readingTime });
-  }, []);
-
-  const updateChapters = useCallback(() => {
-    if (!editorRef.current) return;
-    const headers = editorRef.current.querySelectorAll('h1, h2');
-    const newChapters: Chapter[] = Array.from(headers).map((header, index) => {
-      const id = `chapter-${index}`;
-      header.id = id;
-      return {
-        id,
-        text: (header as HTMLElement).innerText || 'Untitled Section',
-        level: header.tagName === 'H1' ? 1 : 2
-      };
-    });
-    setChapters(newChapters);
-  }, []);
-
-  useEffect(() => {
-    const fetchDraft = async () => {
-      if (!id) return;
       try {
-        const draft = await getDraft(id);
-        if (draft) {
-          setDraftData(draft);
-          setTitle(draft.title || '');
-          setNotes(draft.notes || []);
-          lastSavedContent.current = draft.content || '';
-        } else {
-          toast.error("Draft not found.");
-          navigate('/');
-        }
+        const htmlContent = marked.parse(rev.content) as string;
+        editorRef.current.innerHTML = htmlContent;
+        setTitle(rev.title);
+        setNotes(rev.notes || []);
+        setIsSaved(false);
+        toast.success("Version restored");
+        updateChapters();
+        updateStats();
       } catch (err) {
-        console.error("[editor] error fetching draft", err);
-        navigate('/');
-      } finally {
-        setLoading(false);
+        console.error("[editor] restore failed", err);
+        toast.error("Failed to restore revision");
       }
-    };
-    fetchDraft();
-  }, [id, getDraft, navigate]);
-
-  useEffect(() => {
-    if (draftData && editorRef.current && !isContentInitialized.current) {
-      const htmlContent = marked.parse(draftData.content || '') as string;
-      editorRef.current.innerHTML = htmlContent;
-      isContentInitialized.current = true;
-      updateChapters();
-      updateStats();
     }
-  }, [draftData, updateChapters, updateStats]);
+  };
 
   const updateCaretInfo = useCallback((options: { immediateScroll?: boolean; allowTypewriterScroll?: boolean } = {}) => {
     const { immediateScroll = false, allowTypewriterScroll = false } = options;
@@ -311,7 +322,6 @@ const Editor = () => {
         content: markdown,
         notes: notes 
       });
-      // Store history snapshot
       await createRevision(markdown, true);
       setIsSaved(true);
     } catch (error) {
@@ -596,7 +606,6 @@ const Editor = () => {
             <Button onClick={async () => {
               if (!id || !editorRef.current) return;
               const markdown = turndownService.turndown(editorRef.current.innerHTML);
-              // Save a revision before publishing
               await createRevision(markdown, true);
               await updateDraft(id, { title, content: markdown, status: 'published', notes });
               const updated = await getDraft(id);
